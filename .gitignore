@@ -1,5 +1,5 @@
 # Do not version generated files.
-/target
+**/target/
 
 # These are IDE-specific files. We version pom.xml, and rely on IDE
 # integration with maven (or with maven's generation of IDE files like
