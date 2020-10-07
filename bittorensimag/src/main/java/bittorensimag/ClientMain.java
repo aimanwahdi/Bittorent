@@ -1,8 +1,6 @@
 package bittorensimag;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
 import java.lang.RuntimeException;
 
 /**
@@ -18,13 +16,12 @@ public class ClientMain {
         try {
             options.parseArgs(args);
         } catch (RuntimeException e) {
-            System.err.println("Error during option parsing:\n"
-                    + e.getMessage());
-            //TODO Display Usage of the commandline
-            // options.displayUsage(); 
+            System.err.println("Error during option parsing:\n" + e.getMessage());
+            // TODO Display Usage of the commandline
+            // options.displayUsage();
             System.exit(1);
         }
-        //TODO ASCI Art banner
+        // TODO ASCI Art banner
         if (options.getPrintBanner()) {
             options.bannerInTerminal();
             return;
@@ -32,10 +29,13 @@ public class ClientMain {
 
         if (options.getSourceFiles().isEmpty()) {
             options.displayUsage();
+            error = true;
         } else {
             for (File source : options.getSourceFiles()) {
                 ClientCompiler compiler = new ClientCompiler(options, source);
                 if (compiler.compile()) {
+                    error = false;
+                } else {
                     error = true;
                 }
             }
