@@ -8,5 +8,5 @@ CP="$CLIENT_HOME"/target/generated-classes/cobertura:"$CLIENT_HOME"/target/class
 # May be useful for debugging: show which decac commands are called in a temporary file
 #echo "$0" "$@" >> /tmp/decac.txt
 
-exec java -enableassertions -cp "$CP" bittorensimag.ClientMain "$@"
+exec java -enableassertions -cp "$CP" bittorensimag.Client.ClientMain "$@"
 
