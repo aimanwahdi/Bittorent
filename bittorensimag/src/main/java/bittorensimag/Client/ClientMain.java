@@ -1,4 +1,4 @@
-package bittorensimag;
+package bittorensimag.Client;
 
 import java.io.File;
 import java.lang.RuntimeException;

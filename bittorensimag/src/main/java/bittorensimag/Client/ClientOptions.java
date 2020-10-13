@@ -1,4 +1,4 @@
-package bittorensimag;
+package bittorensimag.Client;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -9,7 +9,7 @@ import java.lang.RuntimeException;
 /**
  * User-specified options influencing the compilation.
  *
- * @author gouloisw 
+ * @author gouloisw
  * @date 06/10/20
  */
 public class ClientOptions {
@@ -20,16 +20,15 @@ public class ClientOptions {
     private boolean startedPassingFiles = false;
     private List<File> sourceFiles = new ArrayList<File>();
 
-
     public void parseArgs(String[] args) throws RuntimeException {
-        for (int i = 0; i < args.length; i++){
+        for (int i = 0; i < args.length; i++) {
             String argument = args[i];
-            if (argument.charAt(0) == '-'){
-                if (startedPassingFiles){
+            if (argument.charAt(0) == '-') {
+                if (startedPassingFiles) {
                     throw new RuntimeException("Cannot pass options after files");
                 }
-                switch(argument.charAt(1)){
-                    //bonus afficher banniere en asci art
+                switch (argument.charAt(1)) {
+                    // bonus afficher banniere en asci art
                     case 'b':
                         printBanner = true;
                         break;
@@ -42,10 +41,10 @@ public class ClientOptions {
                     default:
                         throw new RuntimeException("This option does not exist for the bittorent client");
                 }
-            } else { //si l'argument n'a pas de tiret, alors c'est un fichier
+            } else { // si l'argument n'a pas de tiret, alors c'est un fichier
                 startedPassingFiles = true;
                 File f = new File(argument);
-                if(!sourceFiles.contains(f)) {
+                if (!sourceFiles.contains(f)) {
                     sourceFiles.add(new File(argument));
                 }
             }
@@ -56,11 +55,11 @@ public class ClientOptions {
         return printBanner;
     }
 
-    public boolean getDebug(){
+    public boolean getDebug() {
         return debug;
     }
 
-    public boolean getInfo(){
+    public boolean getInfo() {
         return info;
     }
 
@@ -68,13 +67,13 @@ public class ClientOptions {
         return Collections.unmodifiableList(sourceFiles);
     }
 
-    protected void bannerInTerminal(){
-        //TODO
-        System.out.println("ASCI ART BANNER");                                                                                    
+    protected void bannerInTerminal() {
+        // TODO
+        System.out.println("ASCI ART BANNER");
     }
 
-    protected void displayUsage(){
-        //TODO
+    protected void displayUsage() {
+        // TODO
         System.out.println("This is how you should use Bittorensimag");
-    } 
+    }
 }
