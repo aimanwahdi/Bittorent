@@ -1,6 +1,9 @@
 package bittorensimag.Client;
 
 import java.io.File;
+import java.io.IOException;
+
+import bittorensimag.Tracker.*;
 
 /**
  * Instance of the bittorent compiler
@@ -20,7 +23,13 @@ public class ClientCompiler {
     }
 
     public boolean compile() {
-        System.out.println("The client compiles");
+        Tracker tracker;
+        try {
+            tracker = new Tracker(source);
+            tracker.getAnnounce();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         return true;
     }
 }
