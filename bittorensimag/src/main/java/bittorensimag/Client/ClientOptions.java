@@ -1,9 +1,6 @@
 package bittorensimag.Client;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import java.lang.RuntimeException;
 
 /**
@@ -17,14 +14,15 @@ public class ClientOptions {
     private boolean debug = false;
     private boolean info = false;
     private boolean printBanner = false;
-    private boolean startedPassingFiles = false;
-    private List<File> sourceFiles = new ArrayList<File>();
+    private boolean finishedOptions = false;
+    private File sourceFile = null;
+    private File destinationFolder = null;
 
     public void parseArgs(String[] args) throws RuntimeException {
         for (int i = 0; i < args.length; i++) {
             String argument = args[i];
             if (argument.charAt(0) == '-') {
-                if (startedPassingFiles) {
+                if (finishedOptions) {
                     throw new RuntimeException("Cannot pass options after files");
                 }
                 switch (argument.charAt(1)) {
@@ -42,10 +40,25 @@ public class ClientOptions {
                         throw new RuntimeException("This option does not exist for the bittorent client");
                 }
             } else { // si l'argument n'a pas de tiret, alors c'est un fichier
-                startedPassingFiles = true;
+                finishedOptions = true;
                 File f = new File(argument);
-                if (!sourceFiles.contains(f)) {
-                    sourceFiles.add(new File(argument));
+                if (f.isFile() && f.exists()) {
+                    if (this.sourceFile == null) {
+                        this.sourceFile = f;
+                    } else {
+                        System.err.println("You passed in multiple torrent files");
+                        this.displayUsage();
+                    }
+                } else if (f.isDirectory() && f.exists()) {
+                    if (this.destinationFolder == null && this.sourceFile != null) {
+                        this.destinationFolder = f;
+                    } else if (this.destinationFolder == null && this.sourceFile == null) {
+                        System.err.println("You must pass torrent file first");
+                        this.displayUsage();
+                    } else {
+                        System.err.println("You passed in too much arguments");
+                        this.displayUsage();
+                    }
                 }
             }
         }
@@ -63,8 +76,12 @@ public class ClientOptions {
         return info;
     }
 
-    public List<File> getSourceFiles() {
-        return Collections.unmodifiableList(sourceFiles);
+    public File getSourceFile() {
+        return this.sourceFile;
+    }
+
+    public File getDestinationFolder() {
+        return this.destinationFolder;
     }
 
     protected void bannerInTerminal() {

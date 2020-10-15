@@ -14,18 +14,20 @@ import bittorensimag.Torrent.*;
 public class ClientCompiler {
 
     private final ClientOptions clientOptions;
-    private final File source;
+    private final File sourceFile;
+    private final File destinationFolder;
 
-    public ClientCompiler(ClientOptions clientOptions, File source) {
+    public ClientCompiler(ClientOptions clientOptions, File sourceFile, File destinationFolder) {
         super();
         this.clientOptions = clientOptions;
-        this.source = source;
+        this.sourceFile = sourceFile;
+        this.destinationFolder = destinationFolder;
     }
 
     public boolean compile() {
         Torrent torrent;
         try {
-            torrent = new Torrent(source);
+            torrent = new Torrent(sourceFile);
         } catch (IOException e) {
             e.printStackTrace();
         }

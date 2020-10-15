@@ -18,7 +18,7 @@ public class ClientMain {
         } catch (RuntimeException e) {
             System.err.println("Error during option parsing:\n" + e.getMessage());
             // TODO Display Usage of the commandline
-            // options.displayUsage();
+            options.displayUsage();
             System.exit(1);
         }
         // TODO ASCI Art banner
@@ -27,18 +27,21 @@ public class ClientMain {
             return;
         }
 
-        if (options.getSourceFiles().isEmpty()) {
+        File sourceFile = options.getSourceFile();
+        File destinationFolder = options.getDestinationFolder();
+
+        if (sourceFile == null || destinationFolder == null) {
+            System.err.println("Impossible to start, need source file and destination folder");
             options.displayUsage();
             error = true;
         } else {
-            for (File source : options.getSourceFiles()) {
-                ClientCompiler compiler = new ClientCompiler(options, source);
-                if (compiler.compile()) {
-                    error = false;
-                } else {
-                    error = true;
-                }
+            ClientCompiler compiler = new ClientCompiler(options, sourceFile, destinationFolder);
+            if (compiler.compile()) {
+                error = false;
+            } else {
+                error = true;
             }
+
         }
         System.exit(error ? 1 : 0);
     }
