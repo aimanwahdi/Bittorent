@@ -3,7 +3,7 @@ package bittorensimag.Client;
 import java.io.File;
 import java.io.IOException;
 
-import bittorensimag.Tracker.*;
+import bittorensimag.Torrent.*;
 
 /**
  * Instance of the bittorent compiler
@@ -23,10 +23,9 @@ public class ClientCompiler {
     }
 
     public boolean compile() {
-        Tracker tracker;
+        Torrent torrent;
         try {
-            tracker = new Tracker(source);
-            tracker.getAnnounce();
+            torrent = new Torrent(source);
         } catch (IOException e) {
             e.printStackTrace();
         }
