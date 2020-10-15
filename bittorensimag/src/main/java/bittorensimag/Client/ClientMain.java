@@ -17,11 +17,9 @@ public class ClientMain {
             options.parseArgs(args);
         } catch (RuntimeException e) {
             System.err.println("Error during option parsing:\n" + e.getMessage());
-            // TODO Display Usage of the commandline
             options.displayUsage();
             System.exit(1);
         }
-        // TODO ASCI Art banner
         if (options.getPrintBanner()) {
             options.bannerInTerminal();
             return;
