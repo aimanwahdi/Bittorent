@@ -37,7 +37,7 @@ public class Torrent {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        this.metadata = getTorrentMetadata();
+        this.metadata = fillMetadata();
     }
 
     public boolean hasInfo() {
@@ -84,7 +84,7 @@ public class Torrent {
         return 0;
     }
 
-    public HashMap<String, Object> getTorrentMetadata() throws InvalidBEncodingException {
+    private HashMap<String, Object> fillMetadata() throws InvalidBEncodingException {
         String[] possibleKeysDocument = { "announce", "announce-list", "comment", "created by", "encoding" };
         String[] possibleKeysInfoString = { "pieces", "name", "pieces", "md5sum" };
         String[] possibleKeysInfoInt = { "piece length", "private", "length" };
@@ -112,6 +112,10 @@ public class Torrent {
         for (String key : possibleKeysInfoInt) {
             this.metadata.put(key, getKeyInt(this.info, key));
         }
+        return this.metadata;
+    }
+
+    public HashMap<String, Object> getMetadata() {
         return this.metadata;
     }
 }
