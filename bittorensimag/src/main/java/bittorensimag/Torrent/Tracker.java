@@ -19,7 +19,8 @@ import be.adaxisoft.bencode.BDecoder;
 import be.adaxisoft.bencode.BEncodedValue;
 import be.adaxisoft.bencode.BEncoder;
 import be.adaxisoft.bencode.InvalidBEncodingException;
-// import bittorensimag.Util.Util;
+
+import bittorensimag.Util.Util;
 
 public class Tracker {
     Torrent torrent;
@@ -46,7 +47,7 @@ public class Tracker {
         } catch (InvalidBEncodingException e) {
             e.printStackTrace();
         }
-        this.peer_id = "-" + "BE" + "0001" + "-" + generateRandomAlphanumeric(12);
+        this.peer_id = "-" + "BE" + "0001" + "-" + Util.generateRandomAlphanumeric(12);
         // TODO need to try ports available from 6881 to 6889
         this.port = 6881;
         this.downloaded = 0;
@@ -78,17 +79,6 @@ public class Tracker {
         // String s = Util.bytesToHex(md.digest()); // to test sha1
         String s = new String(md.digest(), StandardCharsets.ISO_8859_1);
         this.info_hash = s;
-    }
-
-    private static String generateRandomAlphanumeric(int targetStringLength) {
-        int leftLimit = 48; // number '0'
-        int rightLimit = 122; // letter 'z'
-        Random random = new Random();
-
-        String generatedString = random.ints(leftLimit, rightLimit + 1)
-                .filter(i -> (i <= 57 || i >= 65) && (i <= 90 || i >= 97)).limit(targetStringLength)
-                .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append).toString();
-        return generatedString;
     }
 
     private void generateUrl() throws UnsupportedEncodingException {

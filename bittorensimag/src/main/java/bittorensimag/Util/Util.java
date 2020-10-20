@@ -1,5 +1,7 @@
 package bittorensimag.Util;
 
+import java.util.Random;
+
 public class Util {
 
     private static final char[] HEX_ARRAY = "0123456789ABCDEF".toCharArray();
@@ -23,5 +25,16 @@ public class Util {
             data[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) << 4) + Character.digit(s.charAt(i + 1), 16));
         }
         return data;
+    }
+
+    public static String generateRandomAlphanumeric(int targetStringLength) {
+        int leftLimit = 48; // number '0'
+        int rightLimit = 122; // letter 'z'
+        Random random = new Random();
+
+        String generatedString = random.ints(leftLimit, rightLimit + 1)
+                .filter(i -> (i <= 57 || i >= 65) && (i <= 90 || i >= 97)).limit(targetStringLength)
+                .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append).toString();
+        return generatedString;
     }
 }
