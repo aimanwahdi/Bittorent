@@ -7,7 +7,7 @@ import java.util.HashMap;
 
 public class Msg {
 	private int msgLength;
-	private String msgType;
+	private int msgType;
     public static final Map<Integer, String> messagesNames;
     static {
         Map<Integer, String> aMap = new HashMap<Integer, String>();
@@ -24,10 +24,11 @@ public class Msg {
         messagesNames = Collections.unmodifiableMap(aMap);
     }
 	
-    public Msg(int msgLength,String msgType) {
-    	this.msgLength=msgLength;
-    	this.msgType=msgType;
-    }
+    public Msg(int msgLength, int msgType) {
+		super();
+		this.msgLength = msgLength;
+		this.msgType = msgType;
+	}
     
 	public int getMsgLength() {
 		return msgLength;
@@ -35,10 +36,10 @@ public class Msg {
 	public void setMsgLength(int msgLength) {
 		this.msgLength = msgLength;
 	}
-	public String getMsgType() {
+	public int getMsgType() {
 		return msgType;
 	}
-	public void setMsgType(String msgType) {
+	public void setMsgType(int msgType) {
 		this.msgType = msgType;
 	}
 	
