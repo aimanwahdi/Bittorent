@@ -11,7 +11,7 @@ public class MsgBinCoder{ //coder pour choke, unchoke, uninterested, interested
 		DataOutputStream out = new DataOutputStream(byteStream);
 		
 		if(msg.getMsgType()>=0 && msg.getMsgType()<4) {
-			out.writeLong(msg.getMsgLength());
+			out.writeInt(msg.getMsgLength());
 			out.writeByte(msg.getMsgType());
 		} 
 		
