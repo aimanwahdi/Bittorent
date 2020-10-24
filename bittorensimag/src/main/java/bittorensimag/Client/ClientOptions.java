@@ -11,6 +11,7 @@ import java.lang.RuntimeException;
  */
 public class ClientOptions {
 
+    private boolean noArgs = false;
     private boolean debug = false;
     private boolean info = false;
     private boolean printBanner = false;
@@ -31,6 +32,10 @@ public class ClientOptions {
     public static final String ANSI_BOLD = "\033[0;1m";
 
     public void parseArgs(String[] args) throws RuntimeException {
+        if (args.length == 0) {
+            noArgs = true;
+            return;
+        }
         for (int i = 0; i < args.length; i++) {
             String argument = args[i];
             if (argument.charAt(0) == '-') {
@@ -68,12 +73,16 @@ public class ClientOptions {
                         System.err.println("You must pass torrent file first");
                         this.displayUsage();
                     } else {
-                        System.err.println("You passed in too much arguments");
+                        System.err.println("You passed in multiple output folders");
                         this.displayUsage();
                     }
                 }
             }
         }
+    }
+
+    public boolean getNoArgs() {
+        return this.noArgs;
     }
 
     public boolean getPrintBanner() {

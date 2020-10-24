@@ -20,6 +20,11 @@ public class ClientMain {
             options.displayUsage();
             System.exit(1);
         }
+        if (options.getNoArgs()) {
+            options.displayUsage();
+            return;
+        }
+
         if (options.getPrintBanner()) {
             options.bannerInTerminal();
             return;
