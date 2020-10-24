@@ -158,7 +158,7 @@
           <execution>
             <id>all-tests</id>
             <configuration>
-              <executable>./src/test/script/all-test.sh</executable>
+              <executable>./src/test/script/all-tests.sh</executable>
             </configuration>
             <phase>test</phase>
             <goals>
@@ -177,9 +177,7 @@
               <!--
                   Build an uber-jar that is packaged with all the other dependencies, You can run this as:
                   
-                  java -jar bittorensimag-1.0.0-jar-with-dependencies.jar foo.deca
-                  
-                  assuming you have a file called foo.deca to attempt a parse.
+                  java -jar bittorensimag-1.0.0-jar-with-dependencies.jar 
                   
                   Not really useful for developers, but may be useful for
                   users.

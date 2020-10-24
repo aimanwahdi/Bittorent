@@ -1,6 +1,6 @@
 #! /bin/sh
 
-# Release version of the Decac wrapper script. The assembly created an
+# Release version of the Bittorensimag wrapper script. The assembly created an
 # uber-jar so all we need is a java -jar command.
 
 dir="$(dirname "$0")"
