@@ -26,8 +26,11 @@ public class ClientCompiler {
 
     public boolean compile() {
         Torrent torrent;
+        Tracker tracker;
         try {
             torrent = new Torrent(sourceFile);
+            tracker = new Tracker(torrent);
+            tracker.getRequest();
         } catch (IOException e) {
             e.printStackTrace();
         }
