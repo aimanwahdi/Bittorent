@@ -17,7 +17,6 @@ import java.security.NoSuchAlgorithmException;
 import be.adaxisoft.bencode.BDecoder;
 import be.adaxisoft.bencode.BEncodedValue;
 import be.adaxisoft.bencode.BEncoder;
-import be.adaxisoft.bencode.InvalidBEncodingException;
 
 import bittorensimag.Util.Util;
 
@@ -38,14 +37,10 @@ public class Tracker {
 
     private Map<String, BEncodedValue> answer;
 
-    public Tracker(Torrent torrent) throws UnsupportedEncodingException {
+    public Tracker(Torrent torrent) throws NoSuchAlgorithmException, IOException {
         this.torrent = torrent;
         this.url = (String) this.torrent.getMetadata().get("announce");
-        try {
-            this.hashInfo();
-        } catch (InvalidBEncodingException e) {
-            e.printStackTrace();
-        }
+        this.hashInfo();
         this.peer_id = "-" + "BE" + "0001" + "-" + Util.generateRandomAlphanumeric(12);
         // TODO need to try ports available from 6881 to 6889
         this.port = 6881;
@@ -60,7 +55,7 @@ public class Tracker {
         this.generateUrl();
     }
 
-    private void hashInfo() throws InvalidBEncodingException {
+    private void hashInfo() throws IOException, NoSuchAlgorithmException {
         Map<String, BEncodedValue> info = this.torrent.getInfo();
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try {
@@ -92,7 +87,7 @@ public class Tracker {
         }
     }
 
-    public void getRequest() {
+    public void getRequest() throws IOException {
         URLConnection connection;
         try {
             System.out.println(this.query);

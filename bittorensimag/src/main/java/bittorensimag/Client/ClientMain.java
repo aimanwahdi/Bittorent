@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.RuntimeException;
+import java.security.NoSuchAlgorithmException;
 
 /**
  * Main class for the command-line Bittorensimag CLient.
@@ -12,7 +13,8 @@ import java.lang.RuntimeException;
  * @date 06/10/20
  */
 public class ClientMain {
-    public static void main(String[] args) throws RuntimeException, FileNotFoundException, IOException {
+    public static void main(String[] args)
+            throws RuntimeException, FileNotFoundException, IOException, NoSuchAlgorithmException {
         boolean error = false;
         final ClientOptions options = new ClientOptions();
         try {
