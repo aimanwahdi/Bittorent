@@ -75,26 +75,26 @@ fi
 rm -f src/test/outputFolder/Aigle.jpg
 rm -f target/Aigle.jpg
 
-# TODO option d
-debug=$(bittorensimag -d src/test/exampleTorrents/Aigle.jpg.torrent src/test/outputFolder/ 2>/dev/null)
-rm -f src/test/outputFolder/Aigle.jpg
-foundDebug=$(echo "$debug" | grep DEBUG)
-if [ -z "$foundDebug" ]
-then
-    echo "bad response -d should output debug"
-    exit 1
-else
-    echo "good response -d"
-fi
+# # TODO option d
+# debug=$(bittorensimag -d src/test/exampleTorrents/Aigle.jpg.torrent src/test/outputFolder/ 2>/dev/null)
+# rm -f src/test/outputFolder/Aigle.jpg
+# foundDebug=$(echo "$debug" | grep DEBUG)
+# if [ -z "$foundDebug" ]
+# then
+#     echo "bad response -d should output debug"
+#     exit 1
+# else
+#     echo "good response -d"
+# fi
 
-# TODO option i
-info=$(bittorensimag -i src/test/exampleTorrents/Aigle.jpg.torrent src/test/outputFolder/ 2>/dev/null)
-rm -f src/test/outputFolder/Aigle.jpg
-foundInfo=$(echo "$info" | grep Information)
-if [ -z "$foundInfo" ]
-then
-    echo "bad response -i should output info"
-    exit 1
-else
-    echo "good response -i"
-fi
+# # TODO option i
+# info=$(bittorensimag -i src/test/exampleTorrents/Aigle.jpg.torrent src/test/outputFolder/ 2>/dev/null)
+# rm -f src/test/outputFolder/Aigle.jpg
+# foundInfo=$(echo "$info" | grep Information)
+# if [ -z "$foundInfo" ]
+# then
+#     echo "bad response -i should output info"
+#     exit 1
+# else
+#     echo "good response -i"
+# fi
