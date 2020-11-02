@@ -99,13 +99,18 @@ public class Tracker {
             connection = new URL(this.url + "?" + this.query).openConnection();
 
             connection.setRequestProperty("Accept-Charset", StandardCharsets.UTF_8.toString());
-            InputStream stream = connection.getInputStream();
-            // Debug to output answer of the tracker
-            // try (Scanner scanner = new Scanner(stream)) {
-            // String output = scanner.useDelimiter("\\A").next();
-            // System.out.println(output);
-            // }
-            this.decodeAnswer(stream);
+            try {
+                InputStream stream = connection.getInputStream();
+                // Debug to output answer of the tracker
+                // try (Scanner scanner = new Scanner(stream)) {
+                // String output = scanner.useDelimiter("\\A").next();
+                // System.out.println(output);
+                // }
+                this.decodeAnswer(stream);
+            } catch (IOException e) {
+                System.err.println("Did not receive the answer of the tracker is he running in the background ?");
+            }
+
         } catch (IOException e) {
             e.printStackTrace();
         }
