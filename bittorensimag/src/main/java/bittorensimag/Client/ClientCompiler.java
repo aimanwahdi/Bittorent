@@ -1,6 +1,7 @@
 package bittorensimag.Client;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 
 import bittorensimag.Torrent.*;
@@ -24,16 +25,13 @@ public class ClientCompiler {
         this.destinationFolder = destinationFolder;
     }
 
-    public boolean compile() {
+    public boolean compile() throws FileNotFoundException, IOException {
         Torrent torrent;
         Tracker tracker;
-        try {
-            torrent = new Torrent(sourceFile);
-            tracker = new Tracker(torrent);
-            tracker.getRequest();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+
+        torrent = new Torrent(sourceFile);
+        tracker = new Tracker(torrent);
+        tracker.getRequest();
         return true;
     }
 }

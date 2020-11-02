@@ -1,6 +1,8 @@
 package bittorensimag.Client;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.lang.RuntimeException;
 
 /**
@@ -10,7 +12,7 @@ import java.lang.RuntimeException;
  * @date 06/10/20
  */
 public class ClientMain {
-    public static void main(String[] args) throws RuntimeException {
+    public static void main(String[] args) throws RuntimeException, FileNotFoundException, IOException {
         boolean error = false;
         final ClientOptions options = new ClientOptions();
         try {
