@@ -11,11 +11,11 @@ public class RequestCoder { //coder for Request and Cancel
 		ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
 		DataOutputStream out = new DataOutputStream(byteStream);
 		
-		out.write(msg.getMsgLength());
+		out.writeInt(msg.getMsgLength());
 		out.writeByte(msg.getMsgType());
-		out.write(msg.getIndex());
-		out.write(msg.getBeginOffset());
-		out.write(msg.getPieceLength());
+		out.writeInt(msg.getIndex());
+		out.writeInt(msg.getBeginOffset());
+		out.writeInt(msg.getPieceLength());
 		
 		out.flush();
 		byte[] data = byteStream.toByteArray();
