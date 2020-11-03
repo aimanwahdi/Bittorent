@@ -11,9 +11,9 @@ public class HaveCoder {
 		ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
 		DataOutputStream out = new DataOutputStream(byteStream);
 		
-		out.write(msg.getMsgLength());
+		out.writeInt(msg.getMsgLength());
 		out.writeByte(msg.getMsgType());
-		out.write(msg.getIndex());
+		out.writeInt(msg.getIndex());
 		
 		out.flush();
 		byte[] data = byteStream.toByteArray();
