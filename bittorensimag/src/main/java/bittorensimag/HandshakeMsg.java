@@ -5,7 +5,7 @@ import java.util.Random;
 public class HandshakeMsg {
 	private final int protocolNameLength = 19;
 	private final String protocolName = "BitTorrent protocol";
-	private final int reservedExtensionByte=0x0;
+	private final long reservedExtensionByte=0x0;
 	private String sha1Hash ;
 	private byte[] peerId; 
 	
@@ -15,7 +15,7 @@ public class HandshakeMsg {
 		new Random().nextBytes(peerId);
 	}
 
-	public int getReservedExtensionByte() {
+	public long getReservedExtensionByte() {
 		return reservedExtensionByte;
 	}
 
