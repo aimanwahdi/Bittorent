@@ -1,15 +1,17 @@
-package bittorensimag;
+package bittorensimag.Messages;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 
-public class MsgRequest extends Msg implements MsgCoder {
+import bittorensimag.MessageCoder.*;
+
+public class Request extends Msg implements MsgCoder {
 	private int index;
 	private int beginOffset;
 	private int pieceLength;
 
-	public MsgRequest(int msgLength, int msgType, int index, int beginOffset, int pieceLength) {
+	public Request(int msgLength, int msgType, int index, int beginOffset, int pieceLength) {
 		super(msgLength, msgType);
 		this.index = index;
 		this.beginOffset = beginOffset;
@@ -52,7 +54,7 @@ public class MsgRequest extends Msg implements MsgCoder {
 		int beginOffset = in.readInt();
 		int pieceLength = in.readInt();
 
-		return new MsgRequest(length, type, index, beginOffset, pieceLength);
+		return new Request(length, type, index, beginOffset, pieceLength);
 	}
 
 }

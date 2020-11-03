@@ -1,4 +1,4 @@
-package bittorensimag;
+package bittorensimag.Messages;
 
 import java.util.Map;
 import java.util.Collections;

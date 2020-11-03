@@ -1,13 +1,15 @@
-package bittorensimag;
+package bittorensimag.Messages;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 
-public class MsgBitfield extends Msg implements MsgCoder {
+import bittorensimag.MessageCoder.*;
+
+public class Bitfield extends Msg implements MsgCoder {
 	private byte[] bitfieldDATA = new byte[2];
 
-	public MsgBitfield(int msgLength, int msgType, byte[] bitfieldDATA) {
+	public Bitfield(int msgLength, int msgType, byte[] bitfieldDATA) {
 		super(msgLength, msgType);
 		this.bitfieldDATA = bitfieldDATA;
 	}
@@ -26,7 +28,7 @@ public class MsgBitfield extends Msg implements MsgCoder {
 	}
 
 	@Override
-	public MsgBitfield fromWire(byte[] input) throws IOException { // parses a given sequence of bytes
+	public Bitfield fromWire(byte[] input) throws IOException { // parses a given sequence of bytes
 		ByteArrayInputStream bs = new ByteArrayInputStream(input);
 		DataInputStream in = new DataInputStream(bs);
 
@@ -35,6 +37,6 @@ public class MsgBitfield extends Msg implements MsgCoder {
 		byte[] data = new byte[length - 1];
 		in.readFully(data);
 
-		return new MsgBitfield(length, type, data);
+		return new Bitfield(length, type, data);
 	}
 }

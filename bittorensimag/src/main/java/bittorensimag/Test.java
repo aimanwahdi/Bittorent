@@ -8,6 +8,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 
+import bittorensimag.MessageCoder.*;
+import bittorensimag.Messages.*;
+
 public class Test {
 	public static void main(String args[]) throws Exception, IOException {
 
@@ -18,7 +21,7 @@ public class Test {
 		DataOutputStream out = new DataOutputStream(byteStream);
 
 		// create handshakeMsg
-		HandshakeMsg handshakeMsg = new HandshakeMsg("067133ace5dd0c5027b99de5d4ba512828208d5b");
+		Handshake handshakeMsg = new Handshake("067133ace5dd0c5027b99de5d4ba512828208d5b");
 
 		// create socket
 		String destAddr = "127.0.0.1"; // Destination address
@@ -43,7 +46,7 @@ public class Test {
 
 					byte[] dataBitfield = { 0, 0 };
 
-					MsgBitfield msgBitfield = new MsgBitfield(3, 5, dataBitfield);
+					Bitfield msgBitfield = new Bitfield(3, 5, dataBitfield);
 					Msg msgInterested = new Msg(1, 2);
 
 					frameMsg(coder.toWire(msgBitfield), Out);

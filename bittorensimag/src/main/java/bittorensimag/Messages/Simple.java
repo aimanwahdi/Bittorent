@@ -1,8 +1,10 @@
-package bittorensimag;
+package bittorensimag.Messages;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
+
+import bittorensimag.MessageCoder.*;
 
 public class Simple extends Msg implements MsgCoder {
     private int msgLength;

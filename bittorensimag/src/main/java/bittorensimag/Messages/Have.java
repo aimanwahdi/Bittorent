@@ -1,13 +1,15 @@
-package bittorensimag;
+package bittorensimag.Messages;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 
-public class MsgHave extends Msg implements MsgCoder {
+import bittorensimag.MessageCoder.*;
+
+public class Have extends Msg implements MsgCoder {
 	private int index;
 
-	public MsgHave(int msgLength, int msgType, int index) {
+	public Have(int msgLength, int msgType, int index) {
 		super(msgLength, msgType);
 		this.index = index;
 	}
@@ -26,7 +28,7 @@ public class MsgHave extends Msg implements MsgCoder {
 	}
 
 	@Override
-	public MsgHave fromWire(byte[] input) throws IOException {
+	public Have fromWire(byte[] input) throws IOException {
 		ByteArrayInputStream bs = new ByteArrayInputStream(input);
 		DataInputStream in = new DataInputStream(bs);
 
@@ -34,7 +36,7 @@ public class MsgHave extends Msg implements MsgCoder {
 		int type = in.readByte();
 		int index = in.readInt();
 
-		return new MsgHave(length, type, index);
+		return new Have(length, type, index);
 	}
 
 }

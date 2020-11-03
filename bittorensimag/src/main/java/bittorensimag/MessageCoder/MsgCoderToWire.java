@@ -1,4 +1,4 @@
-package bittorensimag;
+package bittorensimag.MessageCoder;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
@@ -6,10 +6,11 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 
 import bittorensimag.Util.Util;
+import bittorensimag.Messages.*;
 
 public class MsgCoderToWire implements MsgCoderDispatcher {
 	@Override
-	public byte[] toWire(MsgBitfield msg) throws IOException { // converts the message to a sequence of byte
+	public byte[] toWire(Bitfield msg) throws IOException { // converts the message to a sequence of byte
 		ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
 		DataOutputStream out = new DataOutputStream(byteStream);
 
@@ -28,7 +29,7 @@ public class MsgCoderToWire implements MsgCoderDispatcher {
 	}
 
 	@Override
-	public byte[] toWire(HandshakeMsg msg) throws IOException {
+	public byte[] toWire(Handshake msg) throws IOException {
 		ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
 		DataOutputStream out = new DataOutputStream(byteStream);
 
@@ -52,7 +53,7 @@ public class MsgCoderToWire implements MsgCoderDispatcher {
 	}
 
 	@Override
-	public byte[] toWire(MsgHave msg) throws IOException {
+	public byte[] toWire(Have msg) throws IOException {
 		ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
 		DataOutputStream out = new DataOutputStream(byteStream);
 
@@ -81,7 +82,7 @@ public class MsgCoderToWire implements MsgCoderDispatcher {
 	}
 
 	@Override
-	public byte[] toWire(MsgPiece msg) throws IOException { // converts the message to a sequence of byte
+	public byte[] toWire(Piece msg) throws IOException { // converts the message to a sequence of byte
 		ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
 		DataOutputStream out = new DataOutputStream(byteStream);
 
@@ -99,7 +100,7 @@ public class MsgCoderToWire implements MsgCoderDispatcher {
 	}
 
 	@Override
-	public byte[] toWire(MsgRequest msg) throws IOException { // converts the message to a sequence of byte
+	public byte[] toWire(Request msg) throws IOException { // converts the message to a sequence of byte
 		ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
 		DataOutputStream out = new DataOutputStream(byteStream);
 

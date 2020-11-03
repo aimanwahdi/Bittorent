@@ -1,6 +1,8 @@
-package bittorensimag;
+package bittorensimag.MessageCoder;
 
 import java.io.IOException;
+
+import bittorensimag.Messages.*;
 
 public interface MsgCoder {
 	void accept(MsgCoderDispatcher dispatcher) throws IOException;
