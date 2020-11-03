@@ -11,10 +11,12 @@ public class PieceCoder {
 		ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
 		DataOutputStream out = new DataOutputStream(byteStream);
 		
-		out.write(msg.getMsgLength());
+		out.writeInt(msg.getMsgLength());
 		out.writeByte(msg.getMsgType());
-		out.write(msg.getPieceIndex());
-		out.write(msg.getBeginOffset());
+		out.writeInt(msg.getPieceIndex());
+		out.writeInt(msg.getBeginOffset());
+		
+		//should be corrected later because right now it doesn't write all the data 
 		out.write(msg.getData());
 		
 		out.flush();
