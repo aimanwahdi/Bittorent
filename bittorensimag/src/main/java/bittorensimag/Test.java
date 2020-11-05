@@ -7,6 +7,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.nio.charset.Charset;
+import java.util.Random;
+import java.lang.Math.*;
+
 
 import bittorensimag.MessageCoder.*;
 import bittorensimag.Messages.*;
@@ -35,39 +39,61 @@ public class Test {
 		// create input stream
 		InputStream inputStream = sock.getInputStream();
 		DataInputStream in = new DataInputStream(inputStream);
-
-		while (true) {
-
+		
+		while(true) {
 			try {
 				byte[] req;
 				req = nextMsg(in);
-				if (req != null) {
+				if (req  != null && req[0]==66 ) {	
 					System.out.println("Received message (" + req.length + " bytes)");
-
-					byte[] dataBitfield = { 0, 0 };
-
-					Bitfield msgBitfield = new Bitfield(3, 5, dataBitfield);
-					Msg msgInterested = new Msg(1, 2);
-
-					frameMsg(coder.toWire(msgBitfield), Out);
-					frameMsg(coder.toWire(msgInterested), Out);
+					
+					byte[] dataBitfield = {0,0};
+					
+					Bitfield msgBitfield = new Bitfield(3,5,dataBitfield);
+					Msg msgInterested = new Msg(1,2);
+					
+					frameMsg(coder.toWire(msgBitfield),Out);
+					frameMsg(coder.toWire(msgInterested),Out);
+						
+				}
+				
+				System.out.println(req[0]);
+				if (req  != null && req[0]==-44 ) {
+					System.out.println("request message");
+					Request msgRequest1 = new Request(13,6,6,0,16384);
+					Request msgRequest2 = new Request(13,6,6,16384,16384);
+					frameMsg(coder.toWire(msgRequest1),Out);
+					frameMsg(coder.toWire(msgRequest2),Out);
 
 				}
-
-			} catch (IOException ioe) {
-				System.err.println("Error handling client: " + ioe.getMessage());
-			}
-
+				if (req  != null && Math.abs(req[0])==1 ) {
+					Have msgHave = new Have(5,4,6);
+					frameMsg(coder.toWire(msgHave),Out);
+				}
+				if (req  != null && Math.abs(req[0])==86 ) {
+					Request msgRequest1 = new Request(13,6,4,0,16384);
+					Request msgRequest2 = new Request(13,6,4,16384,16384);
+					frameMsg(coder.toWire(msgRequest1),Out);
+					frameMsg(coder.toWire(msgRequest2),Out);
+				}
+				
+				if (req  != null && Math.abs(req[0])!=1  && req[0]!=-44 && req[0]!=66 && Math.abs(req[0])!=86) {
+					break;
+				}
+			} 
+			catch (IOException ioe) {
+		        System.err.println("Error handling client: " + ioe.getMessage());
+		    } 
 		}
 	}
 
 	// reading a message
 	public static byte[] nextMsg(DataInputStream in) throws IOException {
 		ByteArrayOutputStream messageBuffer = new ByteArrayOutputStream();
-		int nextByte = in.read();
-		int sum = 0;
-		// correct condition
-		while (nextByte != -1 && sum < 35) {
+		int nextByte= in.read();
+		int sum =0;
+		//correct condition 
+		while (nextByte!= -1 && sum<38) { 
 			nextByte = in.read();
 			sum++;
 			messageBuffer.write(nextByte); // write byte to buffer
