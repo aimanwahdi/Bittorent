@@ -14,6 +14,8 @@ public class Handshake {
 	private String sha1Hash;
 	private byte[] peerId;
 
+	public final static int HANDSHAKE_LENGTH = 19;
+
 	public Handshake(String sha1Hash) {
 		this.sha1Hash = sha1Hash;
 		this.peerId = new byte[20];

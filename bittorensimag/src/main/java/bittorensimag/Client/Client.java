@@ -22,7 +22,6 @@ public class Client {
     private InputStream in;
     private Socket socket;
 
-    private final int HANDSHAKE_LENGTH = 19;
     private final String LOCALHOST = "127.0.0.1";
 
     public Client(Torrent torrent, Tracker tracker, MsgCoderToWire coder) {
@@ -115,29 +114,29 @@ public class Client {
         }
     }
 
-    private void sendBitfield(int msgLength, int msgType, byte[] dataBitfield) throws IOException {
-        Bitfield msgBitfield = new Bitfield(msgLength, msgType, dataBitfield);
+    private void sendBitfield(byte[] dataBitfield) throws IOException {
+        Bitfield msgBitfield = new Bitfield(dataBitfield);
         this.frameMsg(coder.toWire(msgBitfield), this.out);
     }
 
-    private void sendInterested(int msgLength, int msgType) throws IOException {
-        this.frameMsg(coder.toWire(new Msg(msgLength, msgType)), this.out);
+    private void sendInterested() throws IOException {
+        this.frameMsg(coder.toWire(new Msg(Simple.LENGTH, Simple.INTERESTED)), this.out);
     }
 
-    private void sendHave(int msgLength, int msgType, int index) throws IOException {
-        Have msgHave = new Have(5, 4, 6);
+    private void sendHave(int index) throws IOException {
+        Have msgHave = new Have(index);
         this.frameMsg(coder.toWire(msgHave), this.out);
     }
 
-    private void sendRequest(int msgLength, int msgType, int index, int beginOffset, int pieceLength)
+    private void sendRequest(int index, int beginOffset, int pieceLength)
             throws IOException {
-        Request msgRequest = new Request(msgLength, msgType, index, beginOffset, pieceLength);
+        Request msgRequest = new Request(index, beginOffset, pieceLength);
         this.frameMsg(coder.toWire(msgRequest), this.out);
     }
 
     private boolean receivedMsg(DataInputStream in, OutputStream Out, MsgCoderToWire coder) throws IOException {
 
-        if ((int) in.readByte() == HANDSHAKE_LENGTH) {
+        if ((int) in.readByte() == Handshake.HANDSHAKE_LENGTH) {
             System.out.println("reading");
 
             // reading the rest of handshake msg
@@ -146,8 +145,8 @@ public class Client {
             // reading recieved bietfield msg
             this.readMessage(in, 7);
 
-            this.sendBitfield(Bitfield.BITFIELD_LENGTH, Bitfield.BITFIELD_TYPE, new byte[] { 0, 0 });
-            this.sendInterested(Simple.INTERESTED_LENGTH, Simple.INTERESTED_TYPE);
+            this.sendBitfield(new byte[] { 0, 0 });
+            this.sendInterested();
 
         } else {
             System.out.println("reading");
@@ -157,7 +156,7 @@ public class Client {
             int fourthByte = in.readByte();
 
             int type = in.readByte();
-            int totalLength = Integer.parseInt("" + HANDSHAKE_LENGTH + secondByte + thirdByte + fourthByte);
+            int totalLength = Integer.parseInt("" + Handshake.HANDSHAKE_LENGTH + secondByte + thirdByte + fourthByte);
 
             System.out.println("secondByte : " + secondByte);
             System.out.println("thirdByte : " + thirdByte);
@@ -168,8 +167,8 @@ public class Client {
             switch (type) {
                 case 1:
                     System.out.println("received unchoke message");
-                    this.sendRequest(Request.REQUEST_LENGTH, Request.REQUEST_TYPE, 6, 0, 16384);
-                    this.sendRequest(Request.REQUEST_LENGTH, Request.REQUEST_TYPE, 6, 16384, 16384);
+                    this.sendRequest(6, 0, 16384);
+                    this.sendRequest(6, 16384, 16384);
                     break;
                 case 7:
                     // Here we should do a loop to request and receive all the pieces
@@ -182,7 +181,7 @@ public class Client {
                     int beginOffset1 = in.readInt();
 
                     // read all the data sent in the first piece
-                    this.readMessage(in, totalLength - 9);
+                    this.readMessage(in, totalLength - Piece.HEADER_LENGTH);
 
                     // read second piece
                     int length2 = in.readInt();
@@ -190,10 +189,10 @@ public class Client {
                     int pieceIndex2 = in.readInt();
                     int beginOffset2 = in.readInt();
 
-                    this.readMessage(in, length2 - 9);
+                    this.readMessage(in, length2 - Piece.HEADER_LENGTH);
 
                     // TODO need to calculate index
-                    this.sendHave(Have.HAVE_LENGTH, Have.HAVE_TYPE, 6);
+                    this.sendHave(6);
                     break;
                 // if the type is not correct leave
                 default:

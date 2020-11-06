@@ -12,8 +12,8 @@ public class Have extends Msg implements MsgCoder {
 	public final static int HAVE_LENGTH = 5;
 	public final static int HAVE_TYPE = 4;
 
-	public Have(int msgLength, int msgType, int index) {
-		super(msgLength, msgType);
+	public Have(int index) {
+		super(HAVE_LENGTH, HAVE_TYPE);
 		this.index = index;
 	}
 
@@ -39,7 +39,7 @@ public class Have extends Msg implements MsgCoder {
 		int type = in.readByte();
 		int index = in.readInt();
 
-		return new Have(length, type, index);
+		return new Have(index);
 	}
 
 }

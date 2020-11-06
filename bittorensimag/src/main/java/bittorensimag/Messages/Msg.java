@@ -24,7 +24,6 @@ public class Msg {
 	}
 
 	public Msg(int msgLength, int msgType) {
-		super();
 		this.msgLength = msgLength;
 		this.msgType = msgType;
 	}

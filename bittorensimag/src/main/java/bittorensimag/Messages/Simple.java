@@ -6,12 +6,17 @@ import java.io.IOException;
 
 import bittorensimag.MessageCoder.*;
 
+// Messages with length = 1
 public class Simple extends Msg implements MsgCoder {
     private int msgLength;
     private int msgType;
 
-    public final static int INTERESTED_LENGTH = 1;
-    public final static int INTERESTED_TYPE = 2;
+    public final static int LENGTH = 1;
+    
+    public final static int CHOKE = 0;
+    public final static int UNCHOKE = 1;
+    public final static int INTERESTED = 2;
+    public final static int NOTINTERESTED = 3;
 
     public Simple(int msgLength, int msgType) {
         super(msgLength, msgType);
