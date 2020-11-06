@@ -33,7 +33,6 @@ public class ClientCompiler {
         tracker.getRequest();
 
         Client client = new Client(torrent, tracker, new MsgCoderToWire());
-        client.createSocket("127.0.0.1", 6881);
         client.startCommunication();
         return true;
     }

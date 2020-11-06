@@ -62,7 +62,7 @@ public class Client {
 
     }
 
-    public void createSocket(String destAddr, int destPort) {
+    private void createSocket(String destAddr, int destPort) {
         try {
             this.socket = new Socket(destAddr, destPort);
             this.out = this.socket.getOutputStream();
@@ -80,25 +80,21 @@ public class Client {
         }
     }
 
-    public void name() {
+    // // reading a message
+    // private static byte[] nextMsg(DataInputStream in) throws IOException {
+    // ByteArrayOutputStream messageBuffer = new ByteArrayOutputStream();
 
-    }
-
-    // reading a message
-    public static byte[] nextMsg(DataInputStream in) throws IOException {
-        ByteArrayOutputStream messageBuffer = new ByteArrayOutputStream();
-
-        int nextByte = in.read();
-        int sum = 0;
-        // correct condition
-        while (nextByte != -1 && sum < 38) {
-            nextByte = in.read();
-            sum++;
-            messageBuffer.write(nextByte); // write byte to buffer
-            System.out.println("reading");
-        }
-        return messageBuffer.toByteArray();
-    }
+    // int nextByte = in.read();
+    // int sum = 0;
+    // // correct condition
+    // while (nextByte != -1 && sum < 38) {
+    // nextByte = in.read();
+    // sum++;
+    // messageBuffer.write(nextByte); // write byte to buffer
+    // System.out.println("reading");
+    // }
+    // return messageBuffer.toByteArray();
+    // }
 
     // writing a message in OutputStream
     private void frameMsg(byte[] message, OutputStream out) throws IOException {
@@ -203,9 +199,7 @@ public class Client {
                 default:
                     return false;
             }
-
         }
         return true;
-
     }
 }
