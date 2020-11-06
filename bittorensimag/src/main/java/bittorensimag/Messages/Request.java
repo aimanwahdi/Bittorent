@@ -11,6 +11,9 @@ public class Request extends Msg implements MsgCoder {
 	private int beginOffset;
 	private int pieceLength;
 
+	public final static int REQUEST_LENGTH = 13;
+	public final static int REQUEST_TYPE = 6;
+
 	public Request(int msgLength, int msgType, int index, int beginOffset, int pieceLength) {
 		super(msgLength, msgType);
 		this.index = index;

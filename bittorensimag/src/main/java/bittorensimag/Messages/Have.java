@@ -9,6 +9,9 @@ import bittorensimag.MessageCoder.*;
 public class Have extends Msg implements MsgCoder {
 	private int index;
 
+	public final static int HAVE_LENGTH = 5;
+	public final static int HAVE_TYPE = 4;
+
 	public Have(int msgLength, int msgType, int index) {
 		super(msgLength, msgType);
 		this.index = index;

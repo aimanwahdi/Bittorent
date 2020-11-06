@@ -9,6 +9,9 @@ import bittorensimag.MessageCoder.*;
 public class Bitfield extends Msg implements MsgCoder {
 	private byte[] bitfieldDATA = new byte[2];
 
+	public final static int BITFIELD_LENGTH = 3;
+	public final static int BITFIELD_TYPE = 5;
+
 	public Bitfield(int msgLength, int msgType, byte[] bitfieldDATA) {
 		super(msgLength, msgType);
 		this.bitfieldDATA = bitfieldDATA;

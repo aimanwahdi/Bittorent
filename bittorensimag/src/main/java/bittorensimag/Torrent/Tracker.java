@@ -23,9 +23,9 @@ import bittorensimag.Util.Util;
 public class Tracker {
     Torrent torrent;
     private String url;
-    private String info_hash;
+    public String info_hash;
     private String peer_id;
-    private int port;
+    public final int port;
     private int uploaded;
     private int downloaded;
     private int left;

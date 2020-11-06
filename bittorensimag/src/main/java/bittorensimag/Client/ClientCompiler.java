@@ -5,6 +5,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 
+import bittorensimag.MessageCoder.MsgCoderToWire;
 import bittorensimag.Torrent.*;
 
 /**
@@ -27,12 +28,13 @@ public class ClientCompiler {
     }
 
     public boolean compile() throws FileNotFoundException, IOException, NoSuchAlgorithmException {
-        Torrent torrent;
-        Tracker tracker;
-
-        torrent = new Torrent(sourceFile);
-        tracker = new Tracker(torrent);
+        Torrent torrent = new Torrent(sourceFile);
+        Tracker tracker = new Tracker(torrent);
         tracker.getRequest();
+
+        Client client = new Client(torrent, tracker, new MsgCoderToWire());
+        client.createSocket("127.0.0.1", 6881);
+        client.startCommunication();
         return true;
     }
 }
