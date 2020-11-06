@@ -40,18 +40,18 @@ public class Client {
         this.calculateNumberPieces();
     }
 
-    private void calculateNumberPieces() {
-        int length = (int) this.torrent.getMetadata().get(Torrent.LENGTH);
-        this.numberOfPieces = length / Piece.DATA_LENGTH;
-        this.lastPieceLength = length % Piece.DATA_LENGTH;
-    }
-
     private void calculateNumberParts() {
         int pieces_length = (int) this.torrent.getMetadata().get(Torrent.PIECE_LENGTH);
         this.numberOfPartPerPiece = pieces_length / Piece.DATA_LENGTH;
         if (pieces_length % Piece.DATA_LENGTH != 0) {
             System.err.println("Warning : pieces length is not a multiple of 16Kb");
         }
+    }
+
+    private void calculateNumberPieces() {
+        int length = (int) this.torrent.getMetadata().get(Torrent.LENGTH);
+        this.numberOfPieces = length / (this.numberOfPartPerPiece * Piece.DATA_LENGTH);
+        this.lastPieceLength = length % Piece.DATA_LENGTH;
     }
 
     public void startCommunication() {
@@ -149,9 +149,9 @@ public class Client {
         this.frameMsg(coder.toWire(msgHave), this.out);
     }
 
-    private void sendRequest(int index, int beginOffset, int pieceLength)
+    private void sendRequest(int index, int beginOffset)
             throws IOException {
-        Request msgRequest = new Request(index, beginOffset, pieceLength);
+        Request msgRequest = new Request(index, beginOffset);
         this.frameMsg(coder.toWire(msgRequest), this.out);
     }
 
@@ -188,8 +188,7 @@ public class Client {
             switch (type) {
                 case Simple.UNCHOKE:
                     System.out.println("received unchoke message");
-                    this.sendRequest(6, 0, 16384);
-                    this.sendRequest(6, 16384, 16384);
+                    this.sendAllRequests();
                     break;
                 case Piece.PIECE_TYPE:
                     // Here we should do a loop to request and receive all the pieces
@@ -221,5 +220,14 @@ public class Client {
             }
         }
         return true;
+    }
+
+    private void sendAllRequests() throws IOException {
+        for (int i = 0; i < this.numberOfPieces - 1; i++) {
+            for (int j = 0; j < this.numberOfPartPerPiece; j++) {
+                sendRequest(i, j * Piece.DATA_LENGTH);
+            }
+        }
+        // TODO last piece
     }
 }

@@ -14,6 +14,14 @@ public class Request extends Msg implements MsgCoder {
 	public final static int REQUEST_LENGTH = 13;
 	public final static int REQUEST_TYPE = 6;
 
+	// Constructor with piece length default
+	public Request(int index, int beginOffset) {
+		super(REQUEST_LENGTH, REQUEST_TYPE);
+		this.index = index;
+		this.beginOffset = beginOffset;
+		this.pieceLength = Piece.DATA_LENGTH;
+	}
+
 	public Request(int index, int beginOffset, int pieceLength) {
 		super(REQUEST_LENGTH, REQUEST_TYPE);
 		this.index = index;
@@ -57,7 +65,7 @@ public class Request extends Msg implements MsgCoder {
 		int beginOffset = in.readInt();
 		int pieceLength = in.readInt();
 
-		return new Request(index, beginOffset, pieceLength);
+		return new Request(index, beginOffset);
 	}
 
 }
