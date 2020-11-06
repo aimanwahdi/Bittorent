@@ -1,6 +1,5 @@
 package bittorensimag.Torrent;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
@@ -11,20 +10,16 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 // import java.util.Scanner;
 
-import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 import be.adaxisoft.bencode.BDecoder;
 import be.adaxisoft.bencode.BEncodedValue;
-import be.adaxisoft.bencode.BEncoder;
 
 import bittorensimag.Util.Util;
 
 public class Tracker {
     Torrent torrent;
     private String url;
-    public String info_hash;
-    private String encoded_info_hash;
     private String peer_id;
     public final int port;
     private int uploaded;
@@ -41,7 +36,6 @@ public class Tracker {
     public Tracker(Torrent torrent) throws NoSuchAlgorithmException, IOException {
         this.torrent = torrent;
         this.url = (String) this.torrent.getMetadata().get("announce");
-        this.hashInfo();
         this.peer_id = "-" + "BE" + "0001" + "-" + Util.generateRandomAlphanumeric(12);
         // TODO need to try ports available from 6881 to 6889
         this.port = 6881;
@@ -56,31 +50,10 @@ public class Tracker {
         this.generateUrl();
     }
 
-    private void hashInfo() throws IOException, NoSuchAlgorithmException {
-        Map<String, BEncodedValue> info = this.torrent.getInfo();
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        try {
-            BEncoder.encode(info, baos);
-        } catch (IOException e1) {
-            e1.printStackTrace();
-        }
-        MessageDigest md = null;
-        try {
-            md = MessageDigest.getInstance("SHA-1");
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-        }
-        md.update(baos.toByteArray());
-        byte[] digest = md.digest();
-        String s = Util.bytesToHex(digest); // to test sha1
-        String encodedHash = new String(digest, StandardCharsets.ISO_8859_1);
-        this.info_hash = s;
-        this.encoded_info_hash = encodedHash;
-    }
-
     private void generateUrl() throws UnsupportedEncodingException {
         try {
-            this.query += "info_hash=" + URLEncoder.encode(this.encoded_info_hash, "ISO_8859_1") + "&" + "peer_id="
+            this.query += "info_hash=" + URLEncoder.encode(this.torrent.encoded_info_hash, "ISO_8859_1") + "&"
+                    + "peer_id="
                     + URLEncoder.encode(this.peer_id, "UTF-8") + "&" + "port=" + this.port + "&" + "uploaded="
                     + this.uploaded + "&" + "downloaded=" + this.downloaded + "&" + "left=" + this.left + "&"
                     + "compact=" + this.compact + "&" + "event=" + this.event;

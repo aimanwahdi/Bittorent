@@ -1,16 +1,22 @@
 package bittorensimag.Torrent;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
 import be.adaxisoft.bencode.BDecoder;
 import be.adaxisoft.bencode.BEncodedValue;
+import be.adaxisoft.bencode.BEncoder;
 import be.adaxisoft.bencode.InvalidBEncodingException;
+import bittorensimag.Util.Util;
 
 public class Torrent {
     private File torrentFile;
@@ -20,7 +26,10 @@ public class Torrent {
     private Map<String, BEncodedValue> info;
     private HashMap<String, Object> metadata = new HashMap<String, Object>();
 
-    public Torrent(File torrentFile) throws FileNotFoundException, IOException {
+    public String info_hash;
+    String encoded_info_hash;
+
+    public Torrent(File torrentFile) throws FileNotFoundException, IOException, NoSuchAlgorithmException {
         this.torrentFile = torrentFile;
         try {
             this.inputStream = new FileInputStream(torrentFile);
@@ -37,6 +46,7 @@ public class Torrent {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        this.hashInfo();
         this.metadata = fillMetadata();
     }
 
@@ -47,6 +57,28 @@ public class Torrent {
         } else {
             return false;
         }
+    }
+
+    private void hashInfo() throws IOException, NoSuchAlgorithmException {
+        Map<String, BEncodedValue> info = this.getInfo();
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try {
+            BEncoder.encode(info, baos);
+        } catch (IOException e1) {
+            e1.printStackTrace();
+        }
+        MessageDigest md = null;
+        try {
+            md = MessageDigest.getInstance("SHA-1");
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        }
+        md.update(baos.toByteArray());
+        byte[] digest = md.digest();
+        String s = Util.bytesToHex(digest); // to test sha1
+        String encodedHash = new String(digest, StandardCharsets.ISO_8859_1);
+        this.info_hash = s;
+        this.encoded_info_hash = encodedHash;
     }
 
     public Map<String, BEncodedValue> getDocument() {

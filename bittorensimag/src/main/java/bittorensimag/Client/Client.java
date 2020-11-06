@@ -71,7 +71,7 @@ public class Client {
     }
 
     private void sendHandshake() {
-        Handshake handshakeMsg = new Handshake(this.tracker.info_hash);
+        Handshake handshakeMsg = new Handshake(this.torrent.info_hash);
         try {
             this.frameMsg(this.coder.toWire(handshakeMsg), this.out);
         } catch (IOException e) {
