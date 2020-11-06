@@ -73,14 +73,13 @@ public class Tracker {
         md.update(baos.toByteArray());
         byte[] digest = md.digest();
         String s = Util.bytesToHex(digest); // to test sha1
-        String encodedHash = new String(md.digest(), StandardCharsets.ISO_8859_1);
+        String encodedHash = new String(digest, StandardCharsets.ISO_8859_1);
         this.info_hash = s;
         this.encoded_info_hash = encodedHash;
     }
 
     private void generateUrl() throws UnsupportedEncodingException {
         try {
-            System.out.println("Info hash is : " + this.info_hash);
             this.query += "info_hash=" + URLEncoder.encode(this.encoded_info_hash, "ISO_8859_1") + "&" + "peer_id="
                     + URLEncoder.encode(this.peer_id, "UTF-8") + "&" + "port=" + this.port + "&" + "uploaded="
                     + this.uploaded + "&" + "downloaded=" + this.downloaded + "&" + "left=" + this.left + "&"
