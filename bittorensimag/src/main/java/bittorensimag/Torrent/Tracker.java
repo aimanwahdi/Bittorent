@@ -24,6 +24,7 @@ public class Tracker {
     Torrent torrent;
     private String url;
     public String info_hash;
+    private String encoded_info_hash;
     private String peer_id;
     public final int port;
     private int uploaded;
@@ -70,15 +71,17 @@ public class Tracker {
             e.printStackTrace();
         }
         md.update(baos.toByteArray());
-        // String s = Util.bytesToHex(md.digest()); // to test sha1
-        String s = new String(md.digest(), StandardCharsets.ISO_8859_1);
+        byte[] digest = md.digest();
+        String s = Util.bytesToHex(digest); // to test sha1
+        String encodedHash = new String(md.digest(), StandardCharsets.ISO_8859_1);
         this.info_hash = s;
+        this.encoded_info_hash = encodedHash;
     }
 
     private void generateUrl() throws UnsupportedEncodingException {
         try {
             System.out.println("Info hash is : " + this.info_hash);
-            this.query += "info_hash=" + URLEncoder.encode(this.info_hash, "ISO_8859_1") + "&" + "peer_id="
+            this.query += "info_hash=" + URLEncoder.encode(this.encoded_info_hash, "ISO_8859_1") + "&" + "peer_id="
                     + URLEncoder.encode(this.peer_id, "UTF-8") + "&" + "port=" + this.port + "&" + "uploaded="
                     + this.uploaded + "&" + "downloaded=" + this.downloaded + "&" + "left=" + this.left + "&"
                     + "compact=" + this.compact + "&" + "event=" + this.event;
