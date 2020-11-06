@@ -41,43 +41,8 @@ public class Test {
 		DataInputStream in = new DataInputStream(inputStream);
 		
 		while(true) {
-			try {
-				byte[] req;
-				req = nextMsg(in);
-				if (req  != null && req[0]==66 ) {	
-					System.out.println("Received message (" + req.length + " bytes)");
-					
-					byte[] dataBitfield = {0,0};
-					
-					Bitfield msgBitfield = new Bitfield(3,5,dataBitfield);
-					Msg msgInterested = new Msg(1,2);
-					
-					frameMsg(coder.toWire(msgBitfield),Out);
-					frameMsg(coder.toWire(msgInterested),Out);
-						
-				}
-				
-				System.out.println(req[0]);
-				if (req  != null && req[0]==-44 ) {
-					System.out.println("request message");
-					Request msgRequest1 = new Request(13,6,6,0,16384);
-					Request msgRequest2 = new Request(13,6,6,16384,16384);
-					frameMsg(coder.toWire(msgRequest1),Out);
-					frameMsg(coder.toWire(msgRequest2),Out);
-
-				}
-				if (req  != null && Math.abs(req[0])==1 ) {
-					Have msgHave = new Have(5,4,6);
-					frameMsg(coder.toWire(msgHave),Out);
-				}
-				if (req  != null && Math.abs(req[0])==86 ) {
-					Request msgRequest1 = new Request(13,6,4,0,16384);
-					Request msgRequest2 = new Request(13,6,4,16384,16384);
-					frameMsg(coder.toWire(msgRequest1),Out);
-					frameMsg(coder.toWire(msgRequest2),Out);
-				}
-				
-				if (req  != null && Math.abs(req[0])!=1  && req[0]!=-44 && req[0]!=66 && Math.abs(req[0])!=86) {
+			try {	
+				if (receivedMsg(in,Out,coder) == 0) {
 					break;
 				}
 			} 
@@ -90,6 +55,7 @@ public class Test {
 	// reading a message
 	public static byte[] nextMsg(DataInputStream in) throws IOException {
 		ByteArrayOutputStream messageBuffer = new ByteArrayOutputStream();
+        
 		int nextByte= in.read();
 		int sum =0;
 		//correct condition 
@@ -108,6 +74,98 @@ public class Test {
 		System.out.println("writing");
 		out.write(message);
 		out.flush();
+
+	}
+	
+	public static int receivedMsg(DataInputStream in, OutputStream Out, MsgCoderToWire coder) throws IOException {
+        int lengthHandshake = in.readByte();
+		System.out.println(lengthHandshake);
+		
+		if (lengthHandshake  == 19) { 
+			System.out.println("reading");
+			
+			//reading the rest of handshake msg
+			for(int i = 0; i< 67 ;i++) {
+				int nextByte = in.readByte();
+			}
+			
+			//reading recieved bietfield msg
+			for(int i = 0; i<7; i++) {
+				int nextByte = in.readByte();
+			}
+			
+			//create our bietfield and interested msgs 
+			byte[] dataBitfield = {0,0};
+			
+			Bitfield msgBitfield = new Bitfield(3,5,dataBitfield);
+			Msg msgInterested = new Msg(1,2);
+			
+			//sending bietfield and interested msgs 
+			frameMsg(coder.toWire(msgBitfield),Out);
+			frameMsg(coder.toWire(msgInterested),Out);
+			
+		}
+		else { 
+			System.out.println("reading");
+			
+			int secondByte = in.readByte();
+			int thirdByte = in.readByte();
+			int fourthByte = in.readByte();
+			
+	        int type = in.readByte();
+	        int Totallength = Integer.parseInt(""+lengthHandshake+secondByte+thirdByte+fourthByte);
+	        
+			System.out.println("secondByte : " + secondByte);
+			System.out.println("thirdByte : " + thirdByte);
+			System.out.println("fourthByte : " + fourthByte);
+
+			System.out.println("type : " + type);
+
+	        switch (type) {
+	        	case 1 :
+					System.out.println("received unchoke message");
+					Request msgRequest1 = new Request(13,6,6,0,16384);
+					Request msgRequest2 = new Request(13,6,6,16384,16384);
+					frameMsg(coder.toWire(msgRequest1),Out);
+					frameMsg(coder.toWire(msgRequest2),Out);
+					break;
+	        	case 7 :
+	        		//Here we should do a loop to request and receive all the pieces 
+	        		
+	        		
+	        		//read the two received pieces and send have message 
+	        		System.out.println("received piece message");
+					
+					//read piece index and begin offset of the first piece 
+					int pieceIndex1 = in.readInt();
+					int beginOffset1 = in.readInt();
+					
+					//read all the data sent in the first piece 
+					for(int i = 0; i<Totallength-9; i++) {
+						int nextByte = in.readByte();
+					}
+					
+					//read second piece 
+					int length2 = in.readInt();
+					int type2 = in.readByte();
+					int pieceIndex2 = in.readInt();
+					int beginOffset2 = in.readInt();
+					
+					for(int i = 0; i<length2-9; i++) {
+						int nextByte = in.readByte();
+					}
+					
+					//send Have message 
+					Have msgHave = new Have(5,4,6);
+					frameMsg(coder.toWire(msgHave),Out);
+					break;
+				//if the type is not correct leave 
+				default :
+					return 0;  
+	        }
+	        
+		}
+        return 1;
 
 	}
 
