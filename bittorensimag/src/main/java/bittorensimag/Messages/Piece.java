@@ -13,7 +13,7 @@ public class Piece extends Msg implements MsgCoder {
 
 	// piece => 2^14 = 16384 (data) + 9 (message)
 	public final static int HEADER_LENGTH = 9;
-	public final static int DATA_LENGTH = 1684;
+	public final static int DATA_LENGTH = 16384;
 	public final static int PIECE_LENGTH = HEADER_LENGTH + DATA_LENGTH;
 	public final static int PIECE_TYPE = 7;
 
