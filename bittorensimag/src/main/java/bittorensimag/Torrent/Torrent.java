@@ -29,6 +29,23 @@ public class Torrent {
     public String info_hash;
     String encoded_info_hash;
 
+    public final static String INFO = "info";
+
+    public final static String ANNOUNCE = "announce";
+    public final static String ANNOUNCE_LIST = "announce-list";
+    public final static String COMMENT = "comment";
+    public final static String CREATED_BY = "created by";
+    public final static String ENCODING = "encoding";
+    public final static String CREATION_DATE = "creation date";
+
+    public final static String PIECES = "pieces";
+    public final static String NAME = "encoding";
+    public final static String MD5SUM = "md5sum";
+
+    public final static String PIECE_LENGTH = "piece length";
+    public final static String LENGTH = "length";
+    public final static String PRIVATE = "private";
+
     public Torrent(File torrentFile) throws FileNotFoundException, IOException, NoSuchAlgorithmException {
         this.torrentFile = torrentFile;
         try {
@@ -41,7 +58,7 @@ public class Torrent {
         try {
             this.document = reader.decodeMap().getMap();
             if (hasInfo()) {
-                this.info = this.document.get("info").getMap();
+                this.info = this.document.get(INFO).getMap();
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -51,7 +68,7 @@ public class Torrent {
     }
 
     public boolean hasInfo() {
-        if (this.document.containsKey("info")) {
+        if (this.document.containsKey(INFO)) {
             System.out.println("The info field exists");
             return true;
         } else {
@@ -117,9 +134,9 @@ public class Torrent {
     }
 
     private HashMap<String, Object> fillMetadata() throws InvalidBEncodingException {
-        String[] possibleKeysDocument = { "announce", "announce-list", "comment", "created by", "encoding" };
-        String[] possibleKeysInfoString = { "pieces", "name", "pieces", "md5sum" };
-        String[] possibleKeysInfoInt = { "piece length", "private", "length" };
+        String[] possibleKeysDocument = { ANNOUNCE, ANNOUNCE_LIST, COMMENT, CREATED_BY, ENCODING };
+        String[] possibleKeysInfoString = { PIECES, NAME, MD5SUM };
+        String[] possibleKeysInfoInt = { PIECE_LENGTH, PRIVATE, LENGTH };
 
         // Get all keys of info dictionnary
         // String keys
@@ -128,10 +145,10 @@ public class Torrent {
         }
 
         // Creation date key
-        if (this.document.containsKey("creation date")) {
-            Long date = this.document.get("creation date").getLong() * 1000L;
+        if (this.document.containsKey(CREATION_DATE)) {
+            Long date = this.document.get(CREATION_DATE).getLong() * 1000L;
             if (date != 0) {
-                this.metadata.put("creation date", new Date(date));
+                this.metadata.put(CREATION_DATE, new Date(date));
             }
         }
 
