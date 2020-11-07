@@ -1,5 +1,6 @@
 package bittorensimag.Util;
 
+import java.util.Arrays;
 import java.util.Random;
 
 public class Util {
@@ -36,5 +37,14 @@ public class Util {
                 .filter(i -> (i <= 57 || i >= 65) && (i <= 90 || i >= 97)).limit(targetStringLength)
                 .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append).toString();
         return generatedString;
+    }
+    
+    /*
+     * concat two byte arrays 
+     */
+    public static byte[] concat(byte[] first, byte[] second) {
+    	byte[] result = Arrays.copyOf(first, first.length + second.length);
+		System.arraycopy(second, 0, result, first.length, second.length);
+		return result;
     }
 }
