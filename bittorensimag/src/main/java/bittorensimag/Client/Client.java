@@ -3,6 +3,7 @@ package bittorensimag.Client;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -35,13 +36,16 @@ public class Client {
     private int numberOfPartPerPiece;
     private int numberOfPieces;
     private int lastPieceLength;
-
+    private int lastPieceNumberOfPart;
+    private int lastPartLength;
+ 
     private Map<Integer, byte[]> fileData;
     private Map<Integer, byte[]> piecesHashes;
     private byte[] data;
 
     private final String LOCALHOST = "127.0.0.1";
-    int numberOfreceivedPieces = 0;
+    private int numberOfReceivedPieces = 0;
+   
 
     public Client(Torrent torrent, Tracker tracker, MsgCoderToWire coder) {
         this.torrent = torrent;
@@ -151,8 +155,11 @@ public class Client {
 
     private void calculateNumberPieces() {
         int length = (int) this.torrent.getMetadata().get(Torrent.LENGTH);
-        this.numberOfPieces = length / (this.numberOfPartPerPiece * Piece.DATA_LENGTH);
-        this.lastPieceLength = length % Piece.DATA_LENGTH;
+        this.numberOfPieces = (int) Math
+                .ceil((double) length / (double) (this.numberOfPartPerPiece * Piece.DATA_LENGTH));
+        this.lastPieceLength = length % (this.numberOfPartPerPiece * Piece.DATA_LENGTH);
+        this.lastPartLength = length % Piece.DATA_LENGTH;
+        this.lastPieceNumberOfPart = (int) Math.ceil((double) this.lastPieceLength / (double) Piece.DATA_LENGTH);
         this.data = new byte[length];
     }
 
@@ -223,7 +230,7 @@ public class Client {
         }
     }
 
-    private int readPieces(DataInputStream in) throws IOException {
+    private int readEndPiece(DataInputStream in) throws IOException {
         // read piece index and begin offset of the first piece
         int pieceIndex1 = in.readInt();
         int beginOffset1 = in.readInt();
@@ -232,8 +239,13 @@ public class Client {
         this.readData(in, Piece.DATA_LENGTH, pieceIndex1);
         System.out.println("pieceIndex1 " + pieceIndex1);
 
+        return pieceIndex1;
+    }
+
+    private int readPieces(DataInputStream in, int numberOfParts) throws IOException {
+        int pieceIndex1 = this.readEndPiece(in);
         // read the rest of the pieces
-        for (int i = 0; i < this.numberOfPartPerPiece - 1; i++) {
+        for (int i = 0; i < numberOfParts - 1; i++) {
 
             int length2 = in.readInt();
             int type2 = in.readByte();
@@ -241,6 +253,30 @@ public class Client {
             int beginOffset2 = in.readInt();
             this.readData(in, Piece.DATA_LENGTH, pieceIndex2);
 
+        }
+
+        return pieceIndex1;
+    }
+
+    private int readLastPiece(DataInputStream in, int numberOfParts) throws IOException {
+        int pieceIndex1 = this.readEndPiece(in);
+        // read the rest of the pieces
+        if (numberOfParts >= 2) {
+            for (int i = 0; i < numberOfParts - 2; i++) {
+
+                int length2 = in.readInt();
+                int type2 = in.readByte();
+                int pieceIndex2 = in.readInt();
+                int beginOffset2 = in.readInt();
+                this.readData(in, Piece.DATA_LENGTH, pieceIndex2);
+
+            }
+            // last one has different length
+            int length2 = in.readInt();
+            int type2 = in.readByte();
+            int pieceIndex2 = in.readInt();
+            int beginOffset2 = in.readInt();
+            this.readData(in, this.lastPartLength, pieceIndex2);
         }
 
         return pieceIndex1;
@@ -297,15 +333,30 @@ public class Client {
         this.frameMsg(coder.toWire(msgRequest), this.out);
     }
 
-    private void sendRequestsForSameIndex(int pieceIndex) throws IOException {
-        for (int j = 0; j < this.numberOfPartPerPiece; j++) {
+    private void sendRequestsForSameIndex(int pieceIndex, int numberOfParts) throws IOException {
+        for (int j = 0; j < numberOfParts; j++) {
             sendRequest(pieceIndex, j * Piece.DATA_LENGTH);
         }
     }
 
+    private void sendLastRequest(int pieceIndex, int numberOfParts) throws IOException {
+        for (int j = 0; j < numberOfParts - 1; j++) {
+            sendRequest(pieceIndex, j * Piece.DATA_LENGTH);
+        }
+        Request msgRequest = new Request(pieceIndex, (numberOfParts - 1) * Piece.DATA_LENGTH, this.lastPartLength);
+        this.frameMsg(coder.toWire(msgRequest), this.out);
+    }
+
     private boolean receivedMsg(DataInputStream in, OutputStream Out, MsgCoderToWire coder) throws IOException {
 
-        int firstByte = in.readByte();
+        int firstByte;
+        try {
+            firstByte = in.readByte();
+        } catch (EOFException e) {
+            System.out.println("No more messages to read ! Is Vuze opened and seeding ?");
+            return false;
+        }
+        ;
         if (firstByte == Handshake.HANDSHAKE_LENGTH) {
             System.out.println("Received Message : Handshake");
 
@@ -322,10 +373,6 @@ public class Client {
             int secondByte = in.readByte();
             int thirdByte = in.readByte();
             int fourthByte = in.readByte();
-
-            int totalLength = Integer
-                    .parseInt(Util.intToHexStringWith0(firstByte) + Util.intToHexStringWith0(secondByte)
-                            + Util.intToHexStringWith0(thirdByte) + Util.intToHexStringWith0(fourthByte), 16);
 
             int type = in.readByte();
             System.out.println("Received Message : " + Msg.messagesNames.get(type));
@@ -344,27 +391,37 @@ public class Client {
                     System.out.println("received piece message");
 
                     System.out.println(this.numberOfPieces);
-                    System.out.println(numberOfreceivedPieces);
-                    if (numberOfreceivedPieces < this.numberOfPieces - 1) {
+                    System.out.println(this.numberOfReceivedPieces);
 
-                        int pieceIndex = readPieces(in);
+                    // before before last piece
+                    if (this.numberOfReceivedPieces < this.numberOfPieces - 2) {
+
+                        int pieceIndex = readPieces(in, this.numberOfPartPerPiece);
 
                         this.sendHave(pieceIndex);
 
-                        this.sendRequestsForSameIndex(pieceIndex + 1);
+                        this.sendRequestsForSameIndex(pieceIndex + 1, this.numberOfPartPerPiece);
                     }
-                    // last piece received
-                    if (numberOfreceivedPieces == this.numberOfPieces - 1) {
-                        int pieceIndex = readPieces(in);
+                    // before last piece
+                    else if (this.numberOfReceivedPieces == this.numberOfPieces - 2) {
+                        int pieceIndex = readPieces(in, this.numberOfPartPerPiece);
                         this.sendHave(pieceIndex);
-                        this.sendLastRequest(pieceIndex + 1);
-                        this.readLastPiece(in);
+
+                        this.sendLastRequest(pieceIndex + 1, this.lastPieceNumberOfPart);
                         this.sendHave(pieceIndex + 1);
+
+                    }
+                    // last piece
+                    else if (this.numberOfReceivedPieces == this.numberOfPieces - 1) {
+                        int pieceIndex = readLastPiece(in, this.lastPieceNumberOfPart);
+                        this.sendHave(pieceIndex);
                         this.sendNotInterested();
                     }
 
-                    numberOfreceivedPieces++;
+                    this.numberOfReceivedPieces++;
                     break;
+                case Simple.CHOKE:
+                    this.closeConnection(in);
                 // if the type is not correct leave
                 default:
                     return false;
@@ -373,48 +430,14 @@ public class Client {
         return true;
     }
 
-    private void sendAllRequests() throws IOException {
-        for (int i = 0; i < this.numberOfPieces - 1; i++) {
-            for (int j = 0; j < this.numberOfPartPerPiece; j++) {
-                sendRequest(i, j * Piece.DATA_LENGTH);
-            }
-        }
-        // TODO last piece
-    }
-
-    private void sendLastRequest(int index) throws IOException {
-        this.sendRequest(index, 0);
-        Request msgRequest = new Request(index, Piece.DATA_LENGTH, this.lastPieceLength); // cest fait juste pour le cas
-                                                                                          // lastPieceLength > 16384
-        this.frameMsg(coder.toWire(msgRequest), this.out);
-    }
-
-    private void readLastPiece(DataInputStream in) throws IOException {
-        // byte[] data = new byte[this.lastPieceLength];
-        // in.readFully(data);
-
-        // first part of the last piece
-        int length = in.readInt();
-        int type = in.readByte();
-        System.out.println("avant dernier piece type : " + type + " length of the last piece : " + length);
-        int index = in.readInt();
-        int beginOffset = in.readInt();
-        byte[] data = new byte[length - 9];
-        in.readFully(data);
-
-        System.out.println("longueur de dernier bytearray : " + data.length);
-        System.out.println("after last byte : " + (int) in.readByte());
-        if (fileData.containsKey(index)) {
-            fileData.replace(index, Util.concat(fileData.get(index), data));
-        } else {
-            fileData.put(index, data);
-        }
-
+    private void closeConnection(DataInputStream in) throws IOException {
+        in.close();
+        this.socket.close();
     }
 
     public void convertHashMapToByteArray() {
-        ByteBuffer buff = ByteBuffer.allocate(data.length);
-        Iterator iterator = fileData.entrySet().iterator();
+        ByteBuffer buff = ByteBuffer.allocate(this.data.length);
+        Iterator iterator = this.fileData.entrySet().iterator();
         while (iterator.hasNext()) {
             Map.Entry mapentry = (Map.Entry) iterator.next();
             System.out.println("clé: " + mapentry.getKey());
@@ -424,7 +447,7 @@ public class Client {
     }
 
     public byte[] getData() {
-        return data;
+        return this.data;
     }
 
 }

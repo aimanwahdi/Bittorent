@@ -34,10 +34,10 @@ public class ClientCompiler {
         tracker.getRequest();
 
         Client client = new Client(torrent, tracker, new MsgCoderToWire());
-        client.leecherOrSeeder();
+        // client.leecherOrSeeder();
         client.startCommunication();
         client.convertHashMapToByteArray();
-        Output out = new Output(this.sourceTorrent.getName().substring(0, this.sourceTorrent.getName().length() - 8),
+        Output out = new Output((String) this.torrent.getMetadata().get(Torrent.NAME),
                 this.destinationFolder.getAbsolutePath() + "/", client.getData());
         out.generateFile();
         return true;
