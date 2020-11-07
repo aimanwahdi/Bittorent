@@ -11,11 +11,14 @@ import java.net.Socket;
 import bittorensimag.MessageCoder.MsgCoderToWire;
 import bittorensimag.Messages.Bitfield;
 import bittorensimag.Messages.Handshake;
+import bittorensimag.Messages.Msg;
+import bittorensimag.Messages.Request;
 import bittorensimag.Messages.Simple;
 import bittorensimag.Torrent.Torrent;
 import bittorensimag.Torrent.Tracker;
 
 public class ClientSeeder {
+	private final Torrent torrent;
     private final MsgCoderToWire coder;
     private DataOutputStream dataOut;
     private DataInputStream dataIn;
@@ -24,10 +27,9 @@ public class ClientSeeder {
     private Socket socket;
     
     private final int HANDSHAKE_LENGTH = 19;
-    //temporary sha1
-    String sha1 = "" ;
     
-    public ClientSeeder( MsgCoderToWire coder) {
+    public ClientSeeder(Torrent torrent, MsgCoderToWire coder) {
+        this.torrent = torrent;
         this.coder = coder;
         this.createOutputStream();
         this.createInputStream();
@@ -39,6 +41,7 @@ public class ClientSeeder {
                 ;
             }
         } catch (IOException ioe) {
+        	ioe.printStackTrace();
             System.err.println("Error handling client: " + ioe.getMessage());
         }
 
@@ -78,33 +81,63 @@ public class ClientSeeder {
         }
     }
     
+    private boolean verifyHandshake(DataInputStream in) {
+    	String sha1 = "";
+    	//read protocol name 
+    	readMessage(in,19);
+    	
+    	//read extension bytes 
+    	readMessage(in,8);
+    	
+    	//read sha1 hash
+    	 for (int i = 0; i < 20; i++) {
+             try {
+                 int nextByte = in.readByte();
+                 sha1 += nextByte;
+
+             } catch (IOException e) {
+                 e.printStackTrace();
+             }
+         }
+    	 
+    	 //read peerId
+     	readMessage(in,20);
+
+    	 if(sha1.equals(this.torrent.info_hash)) {
+    		 return true;
+    	 }
+    	
+    	return false;
+    }
+    
     private void sendHandshake(String sha1) throws IOException {
         Handshake handShake = new Handshake(sha1);
         this.frameMsg(coder.toWire(handShake), this.out);
     }
     
-    private void sendBitfield(int msgLength, int msgType, byte[] dataBitfield) throws IOException {
-        Bitfield msgBitfield = new Bitfield(msgLength, msgType, dataBitfield);
+    private void sendBitfield(byte[] dataBitfield) throws IOException {
+        Bitfield msgBitfield = new Bitfield(dataBitfield);
         this.frameMsg(coder.toWire(msgBitfield), this.out);
     }
     
-    private void sendUnchoke(int msgLength, int msgType) throws IOException {
-    	Simple unchoke = new Simple(msgLength,msgType);
+    private void sendUnchoke() throws IOException {
+    	Msg unchoke = new Msg(Simple.LENGTH, Simple.INTERESTED);
         this.frameMsg(coder.toWire(unchoke), this.out);
     }
     
     private boolean receivedMsg(DataInputStream in, OutputStream Out, MsgCoderToWire coder) throws IOException {
     	if ((int) in.readByte() == HANDSHAKE_LENGTH) {
-            System.out.println("reading");
+            System.out.println("received handshake msg ");
             
-            // reading the rest of handshake msg
-            this.readMessage(in, 67);
+            if (this.verifyHandshake(in)) {
+                //send handshake and bietfield message 
+                this.sendHandshake(this.torrent.info_hash);
+                this.sendBitfield(new byte[] { 0, 0 });
+            }
+            else {
+            	System.out.println("info_hash not found");
+            }
             
-            //TODO verify that we have the file requested from the leecher, otherwise exit with exception
-            
-            //send handshake and bietfield message 
-            this.sendHandshake(sha1);
-            this.sendBitfield(Bitfield.BITFIELD_LENGTH, Bitfield.BITFIELD_TYPE, new byte[] { 0, 0 });
 
     	} else {
             System.out.println("reading");
@@ -112,25 +145,25 @@ public class ClientSeeder {
             int secondByte = in.readByte();
             int thirdByte = in.readByte();
             int fourthByte = in.readByte();
-
             int type = in.readByte();
-            int totalLength = Integer.parseInt("" + HANDSHAKE_LENGTH + secondByte + thirdByte + fourthByte);
-            
-            System.out.println("secondByte : " + secondByte);
-            System.out.println("thirdByte : " + thirdByte);
-            System.out.println("fourthByte : " + fourthByte);
 
             System.out.println("type : " + type);
             
             switch (type) {
-            	case 5 :
+            	case Bitfield.BITFIELD_TYPE :
                     System.out.println("received bitfield message");
                     this.readMessage(in,2);
                     
                     System.out.println("received interested message");
                     this.readMessage(in,5);
                     
-                    this.sendUnchoke(sha1);
+                    this.sendUnchoke();
+                    return true;
+                    
+            	case Request.REQUEST_TYPE :
+                    System.out.println("received request message");
+                    break;
+                    
 
             }
     	}
