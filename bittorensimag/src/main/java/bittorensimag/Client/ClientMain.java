@@ -14,7 +14,7 @@ import java.security.NoSuchAlgorithmException;
  */
 public class ClientMain {
     public static void main(String[] args)
-            throws RuntimeException, FileNotFoundException, IOException, NoSuchAlgorithmException {
+            throws Exception {
         boolean error = false;
         final ClientOptions options = new ClientOptions();
         try {

@@ -19,7 +19,7 @@ import be.adaxisoft.bencode.InvalidBEncodingException;
 import bittorensimag.Util.Util;
 
 public class Torrent {
-    private File torrentFile;
+    public final File torrentFile;
     private FileInputStream inputStream;
     private BDecoder reader;
     private Map<String, BEncodedValue> document;
@@ -39,7 +39,7 @@ public class Torrent {
     public final static String CREATION_DATE = "creation date";
 
     public final static String PIECES = "pieces";
-    public final static String NAME = "encoding";
+    public final static String NAME = "name";
     public final static String MD5SUM = "md5sum";
 
     public final static String PIECE_LENGTH = "piece length";

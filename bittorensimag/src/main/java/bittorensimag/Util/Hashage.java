@@ -1,13 +1,21 @@
 package bittorensimag.Util;
 
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 public class Hashage {
 	private String algorithme; // l'algorithme utilisé pour le hashage peut être SHA-1, SHA-256...
+	MessageDigest md = null;
 
 	public Hashage(String algorithme) {
 		super();
 		this.algorithme = algorithme;
+		try {
+			this.md = MessageDigest.getInstance(algorithme);
+		} catch (NoSuchAlgorithmException e) {
+			System.err.println("This algorithm is not correct");
+			e.printStackTrace();
+		}
 	}
 
 	/**
@@ -30,4 +38,8 @@ public class Hashage {
 		return hexString.toString();
 	}
 
+	public byte[] hashToByteArray(byte[] byteArray) {
+		this.md.update(byteArray);
+		return this.md.digest();
+	}
 }

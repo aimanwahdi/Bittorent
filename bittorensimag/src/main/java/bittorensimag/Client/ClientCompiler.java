@@ -17,23 +17,25 @@ import bittorensimag.Torrent.*;
 public class ClientCompiler {
 
     private final ClientOptions clientOptions;
-    private final File sourceFile;
+    private final File sourceTorrent;
     private final File destinationFolder;
+    private Torrent torrent;
 
-    public ClientCompiler(ClientOptions clientOptions, File sourceFile, File destinationFolder) {
+    public ClientCompiler(ClientOptions clientOptions, File sourceTorrent, File destinationFolder) {
         super();
         this.clientOptions = clientOptions;
-        this.sourceFile = sourceFile;
+        this.sourceTorrent = sourceTorrent;
         this.destinationFolder = destinationFolder;
     }
 
-    public boolean compile() throws FileNotFoundException, IOException, NoSuchAlgorithmException {
-        Torrent torrent = new Torrent(sourceFile);
-        Tracker tracker = new Tracker(torrent);
+    public boolean compile() throws Exception {
+        this.torrent = new Torrent(sourceTorrent);
+        Tracker tracker = new Tracker(this.torrent);
         tracker.getRequest();
 
         Client client = new Client(torrent, tracker, new MsgCoderToWire());
-        client.startCommunication();
+        client.leecherOrSeeder();
+        // client.startCommunication();
         return true;
     }
 }

@@ -3,17 +3,20 @@ package bittorensimag.Client;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.TreeMap;
 
 import bittorensimag.MessageCoder.MsgCoderToWire;
 import bittorensimag.Messages.*;
 import bittorensimag.Torrent.*;
+import bittorensimag.Util.Hashage;
 import bittorensimag.Util.Util;
 
 public class Client {
@@ -25,12 +28,14 @@ public class Client {
     private OutputStream out;
     private InputStream in;
     private Socket socket;
+    private boolean isSeeding;
     
     private int numberOfPartPerPiece;
     private int numberOfPieces;
     private int lastPieceLength;
     
-    private Map<Integer,byte[]> fileData ; 
+    private Map<Integer,byte[]> fileData ;
+    private Map<Integer, byte[]> piecesHashes;
 
     private final String LOCALHOST = "127.0.0.1";
     int numberOfreceivedPieces = 0;
@@ -46,6 +51,92 @@ public class Client {
         this.createInputStream();
         this.calculateNumberParts();
         this.calculateNumberPieces();
+        this.isSeeding = false;
+    }
+
+    public void leecherOrSeeder() throws Exception {
+        File sourceFile = new File(
+                this.torrent.torrentFile.getParent() + "/" + this.torrent.getMetadata().get(Torrent.NAME));
+        if (sourceFile.exists() && sourceFile.isFile()) {
+            if (this.verifyContent(sourceFile)) {
+                this.isSeeding = true;
+                System.out.println("Source file found and correct !");
+                System.out.println("SEEDER MODE");
+            }
+        } else {
+            System.out.println("Source file not found");
+            System.out.println("LEECHER MODE");
+        }
+    }
+
+    private boolean verifyContent(File sourceFile) throws Exception {
+        // Creating stream and buffer to read file
+        DataInputStream sourceDataStream = new DataInputStream(new FileInputStream(sourceFile));
+
+        // Creating string of all pieces info of torrent file
+        String piecesString = (String) this.torrent.getMetadata().get(Torrent.PIECES);
+        byte[] piecesBytes = piecesString.getBytes();
+
+        for (int i = 0; i < this.numberOfPieces; i++) {
+            ByteArrayOutputStream messageBuffer = new ByteArrayOutputStream();
+
+            for (int j = 0; j < Piece.DATA_LENGTH * 2; j++) {
+                try {
+                    int nextByte = sourceDataStream.readByte();
+                    messageBuffer.write(nextByte);
+
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            // hash the piece
+            Hashage hasher = new Hashage("SHA-1");
+            byte[] hashOfPieceFile = hasher.hashToByteArray(messageBuffer.toByteArray());
+
+            // Substring corresponding to piece hash
+            byte[] hashOfPieceTorrent = Arrays.copyOfRange(piecesBytes, 0, 20);
+
+            if (Arrays.equals(hashOfPieceFile, hashOfPieceTorrent)) {
+                // add the piece in the map
+                this.fileData.put(i, messageBuffer.toByteArray());
+                this.piecesHashes.put(i, hashOfPieceFile);
+            } else {
+                System.out.println("File is not identical to it's torrent");
+                return false;
+            }
+
+        }
+        // TODO last piece wiht this.lastPieceLength
+        return true;
+    }
+
+    private boolean verifyHandshake(DataInputStream in) {
+        String sha1 = "";
+        // read protocol name
+        readMessage(in, 19);
+
+        // read extension bytes
+        readMessage(in, 8);
+
+        // read sha1 hash
+        for (int i = 0; i < 20; i++) {
+            try {
+                int nextByte = in.readByte();
+                sha1 += nextByte;
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        // read peerId
+        readMessage(in, 20);
+
+        if (sha1.equals(this.torrent.info_hash)) {
+            return true;
+        }
+
+        return false;
     }
 
     private void calculateNumberParts() {
@@ -180,6 +271,11 @@ public class Client {
     private void sendBitfield(byte[] dataBitfield) throws IOException {
         Bitfield msgBitfield = new Bitfield(dataBitfield);
         this.frameMsg(coder.toWire(msgBitfield), this.out);
+    }
+
+    private void sendUnchoke() throws IOException {
+        Msg unchoke = new Msg(Simple.LENGTH, Simple.INTERESTED);
+        this.frameMsg(coder.toWire(unchoke), this.out);
     }
 
     private void sendInterested() throws IOException {
