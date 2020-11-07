@@ -19,11 +19,10 @@ public class Output {
 	public void generateFile() {
 		try {
 			File f = new File(destination + nomFichier);
-		
 			//Creer un nouveau fichier 
 			//verifier s'il n'existe pas 
 			if (f.createNewFile()) {
-				System.out.println("File created");
+				System.out.println("File created in " + f.getAbsolutePath());
 				Files.write(f.toPath(), this.data);
 			} else {
 				System.out.println("File already exists");
