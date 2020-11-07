@@ -14,7 +14,7 @@ import java.util.TreeMap;
 import bittorensimag.MessageCoder.MsgCoderToWire;
 import bittorensimag.Messages.*;
 import bittorensimag.Torrent.*;
-import bittorensimag.Util.Util;;
+import bittorensimag.Util.Util;
 
 public class Client {
     private final Torrent torrent;
@@ -65,12 +65,13 @@ public class Client {
     public void startCommunication() {
         this.sendHandshake();
         try {
-            while (this.receivedMsg(this.dataIn, this.out, this.coder)) {
-                ;
-            }
+        while (this.receivedMsg(this.dataIn, this.out, this.coder)) {
+        ;
+        }
         } catch (IOException ioe) {
         	ioe.printStackTrace();
             System.err.println("Error handling client: " + ioe.getMessage());
+
         }
 
     }
@@ -108,22 +109,6 @@ public class Client {
             e.printStackTrace();
         }
     }
-
-    // // reading a message
-    // private static byte[] nextMsg(DataInputStream in) throws IOException {
-    // ByteArrayOutputStream messageBuffer = new ByteArrayOutputStream();
-
-    // int nextByte = in.read();
-    // int sum = 0;
-    // // correct condition
-    // while (nextByte != -1 && sum < 38) {
-    // nextByte = in.read();
-    // sum++;
-    // messageBuffer.write(nextByte); // write byte to buffer
-    // System.out.println("reading");
-    // }
-    // return messageBuffer.toByteArray();
-    // }
 
     // writing a message in OutputStream
     private void frameMsg(byte[] message, OutputStream out) throws IOException {
@@ -224,11 +209,10 @@ public class Client {
     }
 
     private boolean receivedMsg(DataInputStream in, OutputStream Out, MsgCoderToWire coder) throws IOException {
-    	
-    	int firstByte = in.readByte();
-    	
+
+        int firstByte = in.readByte();
         if (firstByte == Handshake.HANDSHAKE_LENGTH) {
-            System.out.println("reading");
+            System.out.println("Received Message : Handshake");
 
             // reading the rest of handshake msg
             this.readMessage(in, 67);
@@ -240,21 +224,16 @@ public class Client {
             this.sendInterested();
 
         } else {
-            System.out.println("reading");
-
             int secondByte = in.readByte();
             int thirdByte = in.readByte();
             int fourthByte = in.readByte();
+            
+            int totalLength = Integer
+                    .parseInt(Util.intToHexStringWith0(firstByte) + Util.intToHexStringWith0(secondByte)
+                            + Util.intToHexStringWith0(thirdByte) + Util.intToHexStringWith0(fourthByte), 16);
 
             int type = in.readByte();
-            
-            System.out.println("firstByte : " + firstByte);
-            System.out.println("secondByte : " + secondByte);
-            System.out.println("thirdByte : " + thirdByte);
-            System.out.println("fourthByte : " + fourthByte);
-
-
-            System.out.println("type : " + type);
+			System.out.println("Received Message : " + Msg.messagesNames.get(type));
 
             switch (type) {
                 case Simple.UNCHOKE:
@@ -286,7 +265,6 @@ public class Client {
                         this.sendNotInterested();
                     }
                     numberOfreceivedPieces++;
-
                     break;
                 // if the type is not correct leave
                 default:

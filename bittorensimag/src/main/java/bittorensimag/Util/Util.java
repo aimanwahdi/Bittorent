@@ -7,6 +7,11 @@ public class Util {
 
     private static final char[] HEX_ARRAY = "0123456789ABCDEF".toCharArray();
 
+    // convert int to hexadecimal string with trailing 0 from 01 to 0F
+    public static String intToHexStringWith0(int n) {
+        return String.format("%1$02X", n);
+    }
+
     // convert bytearray into a string
     public static String bytesToHex(byte[] bytes) {
         char[] hexChars = new char[bytes.length * 2];
