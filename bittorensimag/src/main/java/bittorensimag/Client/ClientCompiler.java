@@ -34,6 +34,9 @@ public class ClientCompiler {
 
         Client client = new Client(torrent, tracker, new MsgCoderToWire());
         client.startCommunication();
+        client.convertHashMapToByteArray();
+        Output out = new Output(this.sourceFile.getName().substring(0, this.sourceFile.getName().length() - 8), this.destinationFolder.getAbsolutePath() + "/", client.getData());
+        out.generateFile();
         return true;
     }
 }

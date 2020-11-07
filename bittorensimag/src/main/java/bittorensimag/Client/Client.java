@@ -7,7 +7,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.nio.ByteBuffer;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -31,6 +33,7 @@ public class Client {
     private int lastPieceLength;
     
     private Map<Integer,byte[]> fileData ; 
+    private byte[] data;
 
     private final String LOCALHOST = "127.0.0.1";
     int numberOfreceivedPieces = 0;
@@ -60,6 +63,7 @@ public class Client {
         int length = (int) this.torrent.getMetadata().get(Torrent.LENGTH);
         this.numberOfPieces = length / (this.numberOfPartPerPiece * Piece.DATA_LENGTH);
         this.lastPieceLength = length % Piece.DATA_LENGTH;
+        this.data = new byte[length];
     }
 
     public void startCommunication() {
@@ -202,7 +206,6 @@ public class Client {
     }
     
     private void sendRequestsForSameIndex(int pieceIndex) throws IOException  {
-    	
         for (int j = 0; j < this.numberOfPartPerPiece; j++)  {
             sendRequest(pieceIndex, j * Piece.DATA_LENGTH);
         }
@@ -262,8 +265,12 @@ public class Client {
                     if(numberOfreceivedPieces == this.numberOfPieces -1) {
                     	int pieceIndex = readPieces(in);
                         this.sendHave(pieceIndex);
+                        this.sendLastRequest(pieceIndex + 1);
+                        this.readLastPiece(in);
+                        this.sendHave(pieceIndex + 1);
                         this.sendNotInterested();
                     }
+                    
                     numberOfreceivedPieces++;
                     break;
                 // if the type is not correct leave
@@ -282,4 +289,54 @@ public class Client {
         }
         // TODO last piece
     }
+    
+    private void sendLastRequest(int index) throws IOException {
+    	this.sendRequest(index, 0);
+    	Request msgRequest = new Request(index, Piece.DATA_LENGTH, this.lastPieceLength); //cest fait juste pour le cas lastPieceLength > 16384
+        this.frameMsg(coder.toWire(msgRequest), this.out);
+    }
+    
+    private void readLastPiece(DataInputStream in) throws IOException {
+    	//byte[] data = new byte[this.lastPieceLength];
+    	//in.readFully(data);
+    	
+    	//first part of the last piece
+    	int length = in.readInt();
+		int type = in.readByte();
+		System.out.println("avant dernier piece type : " + type + " length of the last piece : " + length);
+		int index = in.readInt();
+		int beginOffset = in.readInt();
+		byte[] data = new byte[length - 9];
+    	in.readFully(data);
+    	
+    	
+    	System.out.println("longueur de dernier bytearray : " + data.length);
+    	System.out.println("after last byte : " + (int)in.readByte());
+    	if(fileData.containsKey(index)) {
+        	fileData.replace(index, Util.concat(fileData.get(index), data));
+        }
+        else {
+            fileData.put(index, data);
+        }
+		
+		
+    }
+    
+    public void convertHashMapToByteArray() {
+    	ByteBuffer buff = ByteBuffer.allocate(data.length);
+    	Iterator iterator = fileData.entrySet().iterator();
+        while (iterator.hasNext()) {
+          Map.Entry mapentry = (Map.Entry) iterator.next();
+          System.out.println("clé: "+mapentry.getKey());
+          buff.put((byte[])mapentry.getValue());
+        } 
+        this.data = buff.array();
+    }
+
+	public byte[] getData() {
+		return data;
+	}
+    
+    
+    
 }
