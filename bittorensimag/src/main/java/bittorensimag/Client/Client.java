@@ -37,13 +37,7 @@ public class Client {
     private Socket socket;
     private boolean isSeeding;
 
-    private int numberOfPartPerPiece;
-    private int numberOfPieces;
-    private int lastPieceLength;
-    private int lastPieceNumberOfPart;
-    private int lastPartLength;
- 
-    private Map<Integer, byte[]> fileData;
+    private Map<Integer, byte[]> dataMap;
     private Map<Integer, byte[]> piecesHashes;
     private byte[] data;
 
@@ -53,7 +47,7 @@ public class Client {
         this.torrent = torrent;
         this.tracker = tracker;
         this.coder = coder;
-        this.fileData = new HashMap<Integer, byte[]>();
+        this.dataMap = new HashMap<Integer, byte[]>();
         // TODO change when adding multiple peers
         // for now getting first key
         Map.Entry<String, ArrayList<Integer>> firstEntry = tracker.getPeersMap().entrySet().iterator().next();
@@ -61,8 +55,7 @@ public class Client {
         this.createSocket(firstEntry.getKey(), firstEntry.getValue().get(0));
         this.createOutputStream();
         this.createInputStream();
-        this.calculateNumberParts();
-        this.calculateNumberPieces();
+        this.data = new byte[(int) this.torrent.getMetadata().get(Torrent.LENGTH)];
         this.isSeeding = false;
     }
 
@@ -87,7 +80,7 @@ public class Client {
         String piecesString = (String) this.torrent.getMetadata().get(Torrent.PIECES);
         byte[] piecesBytes = piecesString.getBytes();
 
-        for (int i = 0; i < this.numberOfPieces; i++) {
+        for (int i = 0; i < this.torrent.numberOfPieces; i++) {
             ByteArrayOutputStream messageBuffer = new ByteArrayOutputStream();
 
             for (int j = 0; j < Piece.DATA_LENGTH * 2; j++) {
@@ -108,7 +101,7 @@ public class Client {
 
             if (Arrays.equals(hashOfPieceFile, hashOfPieceTorrent)) {
                 // add the piece in the map
-                this.fileData.put(i, messageBuffer.toByteArray());
+                this.dataMap.put(i, messageBuffer.toByteArray());
                 this.piecesHashes.put(i, hashOfPieceFile);
             } else {
                 System.out.println("File is not identical to it's torrent");
@@ -149,23 +142,7 @@ public class Client {
         return false;
     }
 
-    private void calculateNumberParts() {
-        int pieces_length = (int) this.torrent.getMetadata().get(Torrent.PIECE_LENGTH);
-        this.numberOfPartPerPiece = pieces_length / Piece.DATA_LENGTH;
-        if (pieces_length % Piece.DATA_LENGTH != 0) {
-            System.err.println("Warning : pieces length is not a multiple of 16Kb");
-        }
-    }
 
-    private void calculateNumberPieces() {
-        int length = (int) this.torrent.getMetadata().get(Torrent.LENGTH);
-        this.numberOfPieces = (int) Math
-                .ceil((double) length / (double) (this.numberOfPartPerPiece * Piece.DATA_LENGTH));
-        this.lastPieceLength = length % (this.numberOfPartPerPiece * Piece.DATA_LENGTH);
-        this.lastPartLength = length % Piece.DATA_LENGTH;
-        this.lastPieceNumberOfPart = (int) Math.ceil((double) this.lastPieceLength / (double) Piece.DATA_LENGTH);
-        this.data = new byte[length];
-    }
 
     public void startCommunication() {
         this.sendHandshake();
@@ -280,7 +257,7 @@ public class Client {
             int type2 = in.readByte();
             int pieceIndex2 = in.readInt();
             int beginOffset2 = in.readInt();
-            this.readData(in, this.lastPartLength, pieceIndex2);
+            this.readData(in, this.torrent.lastPartLength, pieceIndex2);
         }
 
         return pieceIndex1;
@@ -302,10 +279,10 @@ public class Client {
             }
         }
         // add the piece in the map
-        if (fileData.containsKey(pieceIndex)) {
-            fileData.replace(pieceIndex, Util.concat(fileData.get(pieceIndex), messageBuffer.toByteArray()));
+        if (dataMap.containsKey(pieceIndex)) {
+            dataMap.replace(pieceIndex, Util.concat(dataMap.get(pieceIndex), messageBuffer.toByteArray()));
         } else {
-            fileData.put(pieceIndex, messageBuffer.toByteArray());
+            dataMap.put(pieceIndex, messageBuffer.toByteArray());
         }
     }
 
@@ -347,7 +324,8 @@ public class Client {
         for (int j = 0; j < numberOfParts - 1; j++) {
             sendRequest(pieceIndex, j * Piece.DATA_LENGTH);
         }
-        Request msgRequest = new Request(pieceIndex, (numberOfParts - 1) * Piece.DATA_LENGTH, this.lastPartLength);
+        Request msgRequest = new Request(pieceIndex, (numberOfParts - 1) * Piece.DATA_LENGTH,
+                this.torrent.lastPartLength);
         this.frameMsg(coder.toWire(msgRequest), this.out);
     }
 
@@ -394,30 +372,30 @@ public class Client {
                 case Piece.PIECE_TYPE:
                     System.out.println("received piece message");
 
-                    System.out.println(this.numberOfPieces);
+                    System.out.println(this.torrent.numberOfPieces);
                     System.out.println(this.numberOfReceivedPieces);
 
                     // before before last piece
-                    if (this.numberOfReceivedPieces < this.numberOfPieces - 2) {
+                    if (this.numberOfReceivedPieces < this.torrent.numberOfPieces - 2) {
 
-                        int pieceIndex = readPieces(in, this.numberOfPartPerPiece);
+                        int pieceIndex = readPieces(in, this.torrent.numberOfPartPerPiece);
 
                         this.sendHave(pieceIndex);
 
-                        this.sendRequestsForSameIndex(pieceIndex + 1, this.numberOfPartPerPiece);
+                        this.sendRequestsForSameIndex(pieceIndex + 1, this.torrent.numberOfPartPerPiece);
                     }
                     // before last piece
-                    else if (this.numberOfReceivedPieces == this.numberOfPieces - 2) {
-                        int pieceIndex = readPieces(in, this.numberOfPartPerPiece);
+                    else if (this.numberOfReceivedPieces == this.torrent.numberOfPieces - 2) {
+                        int pieceIndex = readPieces(in, this.torrent.numberOfPartPerPiece);
                         this.sendHave(pieceIndex);
 
-                        this.sendLastRequest(pieceIndex + 1, this.lastPieceNumberOfPart);
+                        this.sendLastRequest(pieceIndex + 1, this.torrent.lastPieceNumberOfPart);
                         this.sendHave(pieceIndex + 1);
 
                     }
                     // last piece
-                    else if (this.numberOfReceivedPieces == this.numberOfPieces - 1) {
-                        int pieceIndex = readLastPiece(in, this.lastPieceNumberOfPart);
+                    else if (this.numberOfReceivedPieces == this.torrent.numberOfPieces - 1) {
+                        int pieceIndex = readLastPiece(in, this.torrent.lastPieceNumberOfPart);
                         this.sendHave(pieceIndex);
                         this.sendNotInterested();
                     }
@@ -439,19 +417,12 @@ public class Client {
         this.socket.close();
     }
 
-    public void convertHashMapToByteArray() {
-        ByteBuffer buffer = ByteBuffer.allocate(this.data.length);
-        Iterator<Map.Entry<Integer, byte[]>> iterator = this.fileData.entrySet().iterator();
-        while (iterator.hasNext()) {
-            Map.Entry<Integer, byte[]> mapEntry = (Map.Entry<Integer, byte[]>) iterator.next();
-            System.out.println("clé: " + mapEntry.getKey());
-            buffer.put((byte[]) mapEntry.getValue());
-        }
-        this.data = buffer.array();
-    }
-
     public byte[] getData() {
         return this.data;
+    }
+
+    public Map<Integer, byte[]> getMapData() {
+        return this.dataMap;
     }
 
 }

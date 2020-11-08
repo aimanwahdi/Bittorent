@@ -16,7 +16,8 @@ import be.adaxisoft.bencode.BDecoder;
 import be.adaxisoft.bencode.BEncodedValue;
 import be.adaxisoft.bencode.BEncoder;
 import be.adaxisoft.bencode.InvalidBEncodingException;
-import bittorensimag.Util.BencodeMap;
+import bittorensimag.Messages.Piece;
+import bittorensimag.Util.MapUtil;
 import bittorensimag.Util.Util;
 
 public class Torrent {
@@ -29,6 +30,12 @@ public class Torrent {
 
     public String info_hash;
     String encoded_info_hash;
+
+    public int numberOfPartPerPiece;
+    public int numberOfPieces;
+    public int lastPieceLength;
+    public int lastPieceNumberOfPart;
+    public int lastPartLength;
 
     public final static String INFO = "info";
 
@@ -70,6 +77,7 @@ public class Torrent {
         }
         this.hashInfo();
         this.metadata = fillMetadata();
+        this.setFields();
     }
 
     public boolean hasInfo() {
@@ -103,6 +111,11 @@ public class Torrent {
         this.encoded_info_hash = encodedHash;
     }
 
+    private void setFields() {
+        this.calculateNumberParts();
+        this.calculateNumberPieces();
+    }
+
     public Map<String, BEncodedValue> getDocument() {
         return this.document;
     }
@@ -113,7 +126,7 @@ public class Torrent {
 
     private HashMap<String, Object> fillMetadata() throws InvalidBEncodingException {
         // Get all keys of document dictionnary
-        BencodeMap.fillBencodeMapString(this.document, this.metadata, possibleKeysDocument);
+        MapUtil.fillBencodeMapString(this.document, this.metadata, possibleKeysDocument);
 
         // Creation date key
         if (this.document.containsKey(CREATION_DATE)) {
@@ -124,14 +137,32 @@ public class Torrent {
         }
 
         // Get all keys of info dictionnary
-        BencodeMap.fillBencodeMapString(this.info, this.metadata, possibleKeysInfoString);
+        MapUtil.fillBencodeMapString(this.info, this.metadata, possibleKeysInfoString);
 
-        BencodeMap.fillBencodeMapInt(this.info, this.metadata, possibleKeysInfoInt);
+        MapUtil.fillBencodeMapInt(this.info, this.metadata, possibleKeysInfoInt);
 
         return this.metadata;
     }
 
     public HashMap<String, Object> getMetadata() {
         return this.metadata;
+    }
+
+    private void calculateNumberParts() {
+        int pieces_length = (int) this.getMetadata().get(PIECE_LENGTH);
+        this.numberOfPartPerPiece = pieces_length / Piece.DATA_LENGTH;
+        if (pieces_length % Piece.DATA_LENGTH != 0) {
+            System.err.println("Warning : pieces length is not a multiple of 16Kb");
+        }
+    }
+
+    private void calculateNumberPieces() {
+        int length = (int) this.getMetadata().get(LENGTH);
+        this.numberOfPieces = (int) Math
+                .ceil((double) length / (double) (this.numberOfPartPerPiece * Piece.DATA_LENGTH));
+        this.lastPieceLength = length % (this.numberOfPartPerPiece * Piece.DATA_LENGTH);
+        this.lastPartLength = length % Piece.DATA_LENGTH;
+        this.lastPieceNumberOfPart = (int) Math.ceil((double) this.lastPieceLength / (double) Piece.DATA_LENGTH);
+
     }
 }

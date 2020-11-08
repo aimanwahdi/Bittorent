@@ -1,12 +1,10 @@
 package bittorensimag.Client;
 
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.security.NoSuchAlgorithmException;
 
 import bittorensimag.MessageCoder.MsgCoderToWire;
 import bittorensimag.Torrent.*;
+import bittorensimag.Util.MapUtil;
 
 /**
  * Instance of the bittorent compiler
@@ -42,7 +40,7 @@ public class ClientCompiler {
         Client client = new Client(torrent, tracker, new MsgCoderToWire());
         // client.leecherOrSeeder();
         client.startCommunication();
-        client.convertHashMapToByteArray();
+        MapUtil.convertHashMapToByteArray((int) this.torrent.getMetadata().get(Torrent.LENGTH), client.getMapData());
         Output out = new Output((String) this.torrent.getMetadata().get(Torrent.NAME),
                 this.destinationFolder.getAbsolutePath() + "/", client.getData());
         out.generateFile();

@@ -18,7 +18,7 @@ import java.security.NoSuchAlgorithmException;
 import be.adaxisoft.bencode.BDecoder;
 import be.adaxisoft.bencode.BEncodedValue;
 import bittorensimag.Client.Client;
-import bittorensimag.Util.BencodeMap;
+import bittorensimag.Util.MapUtil;
 import bittorensimag.Util.IPv4ValidatorRegex;
 import bittorensimag.Util.Util;
 
@@ -112,11 +112,11 @@ public class Tracker {
         try {
             Map<String, BEncodedValue> encodedAnswer = reader.decodeMap().getMap();
 
-            BencodeMap.fillBencodeMapBytes(encodedAnswer, this.answer, new String[] { PEERS });
+            MapUtil.fillBencodeMapBytes(encodedAnswer, this.answer, new String[] { PEERS });
 
             this.getPeerIPPort();
 
-            BencodeMap.fillBencodeMapInt(encodedAnswer, this.answer, possibleKeysAnswerInt);
+            MapUtil.fillBencodeMapInt(encodedAnswer, this.answer, possibleKeysAnswerInt);
         } catch (IOException e) {
             e.printStackTrace();
         }
