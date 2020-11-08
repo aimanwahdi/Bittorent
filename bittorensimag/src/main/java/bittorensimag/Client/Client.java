@@ -439,14 +439,14 @@ public class Client {
     }
 
     public void convertHashMapToByteArray() {
-        ByteBuffer buff = ByteBuffer.allocate(this.data.length);
-        Iterator iterator = this.fileData.entrySet().iterator();
+        ByteBuffer buffer = ByteBuffer.allocate(this.data.length);
+        Iterator<Map.Entry<Integer, byte[]>> iterator = this.fileData.entrySet().iterator();
         while (iterator.hasNext()) {
-            Map.Entry mapentry = (Map.Entry) iterator.next();
-            System.out.println("clé: " + mapentry.getKey());
-            buff.put((byte[]) mapentry.getValue());
+            Map.Entry<Integer, byte[]> mapEntry = (Map.Entry<Integer, byte[]>) iterator.next();
+            System.out.println("clé: " + mapEntry.getKey());
+            buffer.put((byte[]) mapEntry.getValue());
         }
-        this.data = buff.array();
+        this.data = buffer.array();
     }
 
     public byte[] getData() {
