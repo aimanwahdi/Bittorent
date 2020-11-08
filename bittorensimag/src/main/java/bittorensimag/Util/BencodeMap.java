@@ -1,6 +1,5 @@
 package bittorensimag.Util;
 
-import java.util.HashMap;
 import java.util.Map;
 
 import be.adaxisoft.bencode.BEncodedValue;
