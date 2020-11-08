@@ -32,7 +32,13 @@ public class ClientCompiler {
         this.torrent = new Torrent(sourceTorrent);
         Tracker tracker = new Tracker(this.torrent);
         tracker.getRequest();
-
+        synchronized (this) {
+            while (!tracker.foundAnotherPeer()) {
+                this.wait(5000);
+                tracker.getRequest();
+            }
+        }
+        
         Client client = new Client(torrent, tracker, new MsgCoderToWire());
         // client.leecherOrSeeder();
         client.startCommunication();
@@ -40,6 +46,7 @@ public class ClientCompiler {
         Output out = new Output((String) this.torrent.getMetadata().get(Torrent.NAME),
                 this.destinationFolder.getAbsolutePath() + "/", client.getData());
         out.generateFile();
+
         return true;
     }
 }

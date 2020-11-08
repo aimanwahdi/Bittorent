@@ -17,6 +17,7 @@ import java.security.NoSuchAlgorithmException;
 
 import be.adaxisoft.bencode.BDecoder;
 import be.adaxisoft.bencode.BEncodedValue;
+import bittorensimag.Client.Client;
 import bittorensimag.Util.BencodeMap;
 import bittorensimag.Util.IPv4ValidatorRegex;
 import bittorensimag.Util.Util;
@@ -55,7 +56,7 @@ public class Tracker {
         this.url = (String) this.torrent.getMetadata().get(Torrent.ANNOUNCE);
         this.peer_id = "-" + "BE" + "0001" + "-" + Util.generateRandomAlphanumeric(12);
         // TODO need to try ports available from 6881 to 6889
-        this.port = 0;
+        this.port = 6969;
         this.downloaded = 0;
         this.uploaded = 0;
         // TODO how to calculate numwant ? Not equal to length in byte of the file ???
@@ -71,7 +72,8 @@ public class Tracker {
     private void generateUrl() throws UnsupportedEncodingException {
         try {
             this.query += "info_hash=" + URLEncoder.encode(this.torrent.encoded_info_hash, "ISO_8859_1") + "&peer_id="
-                    + URLEncoder.encode(this.peer_id, "UTF-8") + "&uploaded=" + this.uploaded + "&downloaded="
+                    + URLEncoder.encode(this.peer_id, "UTF-8") + "&port=" + Client.PORT + "&uploaded=" + this.uploaded
+                    + "&downloaded="
                     + this.downloaded + "&compact=" + this.compact + "&event=" + this.event;
             ;
         } catch (UnsupportedEncodingException e) {
@@ -80,10 +82,12 @@ public class Tracker {
     }
 
     public void getRequest() throws IOException {
+        System.out.println("Sending GET request to the tracker");
         URLConnection connection;
         try {
-            System.out.println(this.query);
-            connection = new URL(this.url + "?" + this.query).openConnection();
+            URL url = new URL(this.url + "?" + this.query);
+            URL newUrl = new URL(url.getProtocol(), url.getHost(), this.port, url.getFile());
+            connection = newUrl.openConnection();
 
             connection.setRequestProperty("Accept-Charset", StandardCharsets.UTF_8.toString());
             try {
@@ -147,6 +151,10 @@ public class Tracker {
                 continue;
             }
 
+            if (this.peerPort == Client.PORT && this.peerIP.compareTo(Client.IP) == 0) {
+                continue;
+            }
+
             // add the peer in the map
             if (this.peersMap.containsKey(this.peerIP)) {
                 ArrayList<Integer> portList = this.peersMap.get(this.peerIP);
@@ -161,6 +169,15 @@ public class Tracker {
 
     public HashMap<String, ArrayList<Integer>> getPeersMap() {
         return this.peersMap;
+    }
+
+    public boolean foundAnotherPeer() throws IOException {
+        if (this.peersMap.isEmpty()) {
+            System.err.println("There is not another peer please restart Vuze");
+            return false;
+        }
+
+        return true;
     }
 
 }

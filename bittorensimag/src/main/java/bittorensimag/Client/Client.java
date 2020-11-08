@@ -24,6 +24,9 @@ import bittorensimag.Util.Hashage;
 import bittorensimag.Util.Util;
 
 public class Client {
+    public final static String IP = "127.0.0.1";
+    public final static int PORT = 6882;
+
     private final Torrent torrent;
     private final Tracker tracker;
     private final MsgCoderToWire coder;
@@ -45,8 +48,6 @@ public class Client {
     private byte[] data;
 
     private int numberOfReceivedPieces = 0;
-   
-    private final String LOCALHOST = "127.0.0.1";
 
     public Client(Torrent torrent, Tracker tracker, MsgCoderToWire coder) {
         this.torrent = torrent;
