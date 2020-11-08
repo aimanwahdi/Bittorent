@@ -3,12 +3,20 @@ package bittorensimag.MessageCoder;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.charset.Charset;
 
 import bittorensimag.Util.Util;
 import bittorensimag.Messages.*;
 
-public class MsgCoderToWire implements MsgCoderDispatcher {
+public class MsgCoderToWire implements MsgCoderDispatcherToWire {
+	// writing a message in OutputStream
+	public void frameMsg(byte[] message, OutputStream out) throws IOException {
+		// write message
+		out.write(message);
+		out.flush();
+	}
+
 	@Override
 	public byte[] toWire(Bitfield msg) throws IOException { // converts the message to a sequence of byte
 		ByteArrayOutputStream byteStream = new ByteArrayOutputStream();

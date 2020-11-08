@@ -4,7 +4,7 @@ import java.io.IOException;
 
 import bittorensimag.Messages.*;
 
-public interface MsgCoderDispatcher {
+public interface MsgCoderDispatcherToWire {
     byte[] toWire(Bitfield msg) throws IOException; // converts the message to a sequence of byte
 
     byte[] toWire(Handshake msg) throws IOException;

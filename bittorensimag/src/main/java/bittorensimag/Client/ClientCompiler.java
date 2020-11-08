@@ -2,6 +2,7 @@ package bittorensimag.Client;
 
 import java.io.File;
 
+import bittorensimag.MessageCoder.MsgCoderFromWire;
 import bittorensimag.MessageCoder.MsgCoderToWire;
 import bittorensimag.Torrent.*;
 import bittorensimag.Util.MapUtil;
@@ -36,13 +37,15 @@ public class ClientCompiler {
                 tracker.getRequest();
             }
         }
+        System.out.println("Found another peer for torrent file");
         
-        Client client = new Client(torrent, tracker, new MsgCoderToWire());
+        Client client = new Client(torrent, tracker, new MsgCoderToWire(), new MsgCoderFromWire());
         // client.leecherOrSeeder();
         client.startCommunication();
-        MapUtil.convertHashMapToByteArray((int) this.torrent.getMetadata().get(Torrent.LENGTH), client.getMapData());
+        byte[] fileContent = MapUtil.convertHashMapToByteArray((int) this.torrent.getMetadata().get(Torrent.LENGTH),
+                Torrent.dataMap);
         Output out = new Output((String) this.torrent.getMetadata().get(Torrent.NAME),
-                this.destinationFolder.getAbsolutePath() + "/", client.getData());
+                this.destinationFolder.getAbsolutePath() + "/", fileContent);
         out.generateFile();
 
         return true;
