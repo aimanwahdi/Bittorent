@@ -3,6 +3,7 @@ package bittorensimag.Messages;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.Random;
 
 import bittorensimag.MessageCoder.*;
@@ -57,16 +58,56 @@ public class Handshake {
 				+ "]";
 	}
 
-	public void accept(MsgCoderDispatcher dispatcher) throws IOException {
-		dispatcher.toWire(this);
+	public void accept(MsgCoderDispatcherToWire dispatcher) throws IOException {
+	dispatcher.toWire(this);
 	}
 
-	public Handshake fromWire(byte[] input) throws IOException {
-		ByteArrayInputStream bs = new ByteArrayInputStream(input);
-		DataInputStream in = new DataInputStream(bs);
-		int protocolNameLength = in.readByte();
-		// String protocolName = new String(in.re);
+	// public Handshake fromWire(byte[] input) throws IOException {
+	// ByteArrayInputStream bs = new ByteArrayInputStream(input);
+	// DataInputStream in = new DataInputStream(bs);
+	// int protocolNameLength = in.readUnsignedByte();
+	// // String protocolName = new String(in.re);
 
-		return new Handshake("test");
+	// return new Handshake("test");
+	// }
+
+	// private boolean verifyHandshake(DataInputStream in) {
+	// String sha1 = "";
+	// // read protocol name
+	// readMessage(in, 19);
+
+	// // read extension bytes
+	// readMessage(in, 8);
+
+	// // read sha1 hash
+	// for (int i = 0; i < 20; i++) {
+	// try {
+	// int nextByte = in.readUnsignedByte();
+	// sha1 += nextByte;
+
+	// } catch (IOException e) {
+	// e.printStackTrace();
+	// }
+	// }
+
+	// // read peerId
+	// readMessage(in, 20);
+
+	// if (sha1.equals(this.torrent.info_hash)) {
+	// return true;
+	// }
+
+	// return false;
+	// }
+
+	public static void sendMessage(String info_hash, OutputStream out) {
+		MsgCoderToWire coderToWire = new MsgCoderToWire();
+		Handshake handshakeMsg = new Handshake(info_hash);
+		try {
+			coderToWire.frameMsg(coderToWire.toWire(handshakeMsg), out);
+			System.out.println("Message Handshake sent");
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 }

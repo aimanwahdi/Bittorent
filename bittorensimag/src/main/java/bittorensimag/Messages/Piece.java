@@ -3,10 +3,12 @@ package bittorensimag.Messages;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 import bittorensimag.MessageCoder.*;
 
-public class Piece extends Msg implements MsgCoder {
+public class Piece extends Msg {
 	private int pieceIndex;
 	private int beginOffset;
 	private byte[] data;
@@ -56,25 +58,4 @@ public class Piece extends Msg implements MsgCoder {
 	public void setData(byte[] data) {
 		this.data = data;
 	}
-
-	@Override
-	public void accept(MsgCoderDispatcher dispatcher) throws IOException {
-		dispatcher.toWire(this);
-	}
-
-	@Override
-	public Msg fromWire(byte[] input) throws IOException {
-		ByteArrayInputStream bs = new ByteArrayInputStream(input);
-		DataInputStream in = new DataInputStream(bs);
-
-		int length = in.readInt();
-		int type = in.readByte();
-		int index = in.readInt();
-		int beginOffset = in.readInt();
-		byte[] data = new byte[length - HEADER_LENGTH];
-		in.readFully(data);
-
-		return new Piece(index, beginOffset, data);
-	}
-
 }

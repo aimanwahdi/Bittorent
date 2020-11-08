@@ -1,12 +1,12 @@
 package bittorensimag.Messages;
 
-import java.io.ByteArrayInputStream;
-import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 
 import bittorensimag.MessageCoder.*;
+import bittorensimag.Torrent.Torrent;
 
-public class Request extends Msg implements MsgCoder {
+public class Request extends Msg {
 	private int index;
 	private int beginOffset;
 	private int pieceLength;
@@ -49,23 +49,30 @@ public class Request extends Msg implements MsgCoder {
 		this.pieceLength = pieceLength;
 	}
 
-	@Override
-	public void accept(MsgCoderDispatcher dispatcher) throws IOException {
-		dispatcher.toWire(this);
+	public static void sendMessage(int index, int beginOffset, OutputStream out) throws IOException {
+		MsgCoderToWire coderToWire = new MsgCoderToWire();
+		Request msgRequest = new Request(index, beginOffset);
+		coderToWire.frameMsg(coderToWire.toWire(msgRequest), out);
+		// TODO Add info
+		System.out.println("Message Request sent index=" + index);
 	}
 
-	@Override
-	public Msg fromWire(byte[] input) throws IOException {
-		ByteArrayInputStream bs = new ByteArrayInputStream(input);
-		DataInputStream in = new DataInputStream(bs);
-
-		int length = in.readInt();
-		int type = in.readByte();
-		int index = in.readInt();
-		int beginOffset = in.readInt();
-		int pieceLength = in.readInt();
-
-		return new Request(index, beginOffset);
+	public static void sendMessage(int index, int beginOffset, int pieceLength, OutputStream out) throws IOException {
+		MsgCoderToWire coderToWire = new MsgCoderToWire();
+		Request msgRequest = new Request(index, beginOffset, pieceLength);
+		coderToWire.frameMsg(coderToWire.toWire(msgRequest), out);
+		// TODO Add info
+		System.out.println("Message Request sent (Last Part) index=" + index);
 	}
 
+	public static void sendMessageForIndex(int index, int numberOfParts, OutputStream out) throws IOException {
+		for (int j = 0; j < numberOfParts - 1; j++) {
+			Request.sendMessage(index, j * Piece.DATA_LENGTH, out);
+		}
+		if (index == Torrent.numberOfPieces - 1) {
+			Request.sendMessage(index, (numberOfParts - 1) * Piece.DATA_LENGTH, Torrent.lastPartLength, out);
+		} else {
+			Request.sendMessage(index, (numberOfParts - 1) * Piece.DATA_LENGTH, out);
+		}
+	}
 }

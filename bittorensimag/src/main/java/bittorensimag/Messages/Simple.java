@@ -3,13 +3,13 @@ package bittorensimag.Messages;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 
 import bittorensimag.MessageCoder.*;
 
 // Messages with length = 1
-public class Simple extends Msg implements MsgCoder {
-    private int msgLength;
-    private int msgType;
+public class Simple extends Msg {
+    protected int msgType;
 
     public final static int LENGTH = 1;
     
@@ -18,20 +18,17 @@ public class Simple extends Msg implements MsgCoder {
     public final static int INTERESTED = 2;
     public final static int NOTINTERESTED = 3;
 
-    public Simple(int msgLength, int msgType) {
-        super(msgLength, msgType);
+    public Simple(int msgType) {
+        super(LENGTH, msgType);
+        this.msgType = super.getMsgType();
     }
 
     public int getMsgLength() {
-        return msgLength;
-    }
-
-    public void setMsgLength(int msgLength) {
-        this.msgLength = msgLength;
+        return super.getMsgLength();
     }
 
     public int getMsgType() {
-        return msgType;
+        return super.getMsgType();
     }
 
     public void setMsgType(int msgType) {
@@ -44,20 +41,10 @@ public class Simple extends Msg implements MsgCoder {
                 + "]";
     }
 
-    @Override
-    public void accept(MsgCoderDispatcher dispatcher) throws IOException {
-        dispatcher.toWire(this);
-
-    }
-
-    @Override
-    public Msg fromWire(byte[] input) throws IOException {
-        ByteArrayInputStream bs = new ByteArrayInputStream(input);
-        DataInputStream in = new DataInputStream(bs);
-
-        int length = in.readInt();
-        int type = in.readByte();
-
-        return new Msg(length, type);
+    public static void sendMessage(int msgType, OutputStream out) throws IOException {
+        MsgCoderToWire coderToWire = new MsgCoderToWire();
+        Simple msg = new Simple(msgType);
+        coderToWire.frameMsg(coderToWire.toWire(msg), out);
+        System.out.println("Message " + Msg.messagesNames.get(msgType) + " sent");
     }
 }

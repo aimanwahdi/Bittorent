@@ -31,11 +31,16 @@ public class Torrent {
     public String info_hash;
     String encoded_info_hash;
 
-    public int numberOfPartPerPiece;
-    public int numberOfPieces;
-    public int lastPieceLength;
-    public int lastPieceNumberOfPart;
-    public int lastPartLength;
+    // TODO change to static (complex)
+    public static int numberOfPartPerPiece;
+    public static int numberOfPieces;
+    public static int lastPieceLength;
+    public static int lastPieceNumberOfPart;
+    public static int lastPartLength;
+    public static int pieces_length;
+
+    public static Map<Integer, byte[]> dataMap = new HashMap<Integer, byte[]>();
+    public static Map<Integer, byte[]> piecesHashes = new HashMap<Integer, byte[]>();
 
     public final static String INFO = "info";
 
@@ -149,8 +154,8 @@ public class Torrent {
     }
 
     private void calculateNumberParts() {
-        int pieces_length = (int) this.getMetadata().get(PIECE_LENGTH);
-        this.numberOfPartPerPiece = pieces_length / Piece.DATA_LENGTH;
+        Torrent.pieces_length = (int) this.getMetadata().get(PIECE_LENGTH);
+        Torrent.numberOfPartPerPiece = pieces_length / Piece.DATA_LENGTH;
         if (pieces_length % Piece.DATA_LENGTH != 0) {
             System.err.println("Warning : pieces length is not a multiple of 16Kb");
         }
@@ -158,11 +163,11 @@ public class Torrent {
 
     private void calculateNumberPieces() {
         int length = (int) this.getMetadata().get(LENGTH);
-        this.numberOfPieces = (int) Math
-                .ceil((double) length / (double) (this.numberOfPartPerPiece * Piece.DATA_LENGTH));
-        this.lastPieceLength = length % (this.numberOfPartPerPiece * Piece.DATA_LENGTH);
-        this.lastPartLength = length % Piece.DATA_LENGTH;
-        this.lastPieceNumberOfPart = (int) Math.ceil((double) this.lastPieceLength / (double) Piece.DATA_LENGTH);
+        Torrent.numberOfPieces = (int) Math
+                .ceil((double) length / (double) (Torrent.numberOfPartPerPiece * Piece.DATA_LENGTH));
+        Torrent.lastPieceLength = length % (Torrent.numberOfPartPerPiece * Piece.DATA_LENGTH);
+        Torrent.lastPartLength = length % Piece.DATA_LENGTH;
+        Torrent.lastPieceNumberOfPart = (int) Math.ceil((double) Torrent.lastPieceLength / (double) Piece.DATA_LENGTH);
 
     }
 }

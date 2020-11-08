@@ -3,10 +3,11 @@ package bittorensimag.Messages;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 
 import bittorensimag.MessageCoder.*;
 
-public class Have extends Msg implements MsgCoder {
+public class Have extends Msg {
 	private int index;
 
 	public final static int HAVE_LENGTH = 5;
@@ -25,21 +26,12 @@ public class Have extends Msg implements MsgCoder {
 		this.index = index;
 	}
 
-	@Override
-	public void accept(MsgCoderDispatcher dispatcher) throws IOException {
-		dispatcher.toWire(this);
-	}
-
-	@Override
-	public Have fromWire(byte[] input) throws IOException {
-		ByteArrayInputStream bs = new ByteArrayInputStream(input);
-		DataInputStream in = new DataInputStream(bs);
-
-		int length = in.readInt();
-		int type = in.readByte();
-		int index = in.readInt();
-
-		return new Have(index);
+	public static void sendMessage(int index, OutputStream out) throws IOException {
+		MsgCoderToWire coderToWire = new MsgCoderToWire();
+		Have have = new Have(index);
+		coderToWire.frameMsg(coderToWire.toWire(have), out);
+		// TODO Add info
+		System.out.println("Message Have sent index=" + index);
 	}
 
 }
