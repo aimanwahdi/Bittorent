@@ -18,6 +18,7 @@ import java.security.NoSuchAlgorithmException;
 import be.adaxisoft.bencode.BDecoder;
 import be.adaxisoft.bencode.BEncodedValue;
 import bittorensimag.Util.BencodeMap;
+import bittorensimag.Util.IPv4ValidatorRegex;
 import bittorensimag.Util.Util;
 
 public class Tracker {
@@ -54,11 +55,11 @@ public class Tracker {
         this.url = (String) this.torrent.getMetadata().get(Torrent.ANNOUNCE);
         this.peer_id = "-" + "BE" + "0001" + "-" + Util.generateRandomAlphanumeric(12);
         // TODO need to try ports available from 6881 to 6889
-        this.port = 6881;
+        this.port = 0;
         this.downloaded = 0;
         this.uploaded = 0;
         // TODO how to calculate numwant ? Not equal to length in byte of the file ???
-        this.left = 806512;
+        // this.left = 806512;
         // this.numwant = 50;
         this.compact = 1;
         this.event = "started";
@@ -69,10 +70,10 @@ public class Tracker {
 
     private void generateUrl() throws UnsupportedEncodingException {
         try {
-            this.query += "info_hash=" + URLEncoder.encode(this.torrent.encoded_info_hash, "ISO_8859_1") + "&"
-                    + "peer_id=" + URLEncoder.encode(this.peer_id, "UTF-8") + "&" + "port=" + this.port + "&"
-                    + "uploaded=" + this.uploaded + "&" + "downloaded=" + this.downloaded + "&" + "left=" + this.left
-                    + "&" + "compact=" + this.compact + "&" + "event=" + this.event;
+            this.query += "info_hash=" + URLEncoder.encode(this.torrent.encoded_info_hash, "ISO_8859_1") + "&peer_id="
+                    + URLEncoder.encode(this.peer_id, "UTF-8") + "&uploaded=" + this.uploaded + "&downloaded="
+                    + this.downloaded + "&compact=" + this.compact + "&event=" + this.event;
+            ;
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
         }
@@ -120,17 +121,32 @@ public class Tracker {
     private void getPeerIPPort() {
         byte[] peersAnswer = (byte[]) this.answer.get(PEERS);
 
-        this.numberOfPeers = peersAnswer.length / 6;
+        if (peersAnswer.length == 0) {
+            System.out.println("No peers in the swarm (from tracker)");
+            return;
+        }
+
+        this.numberOfPeers = peersAnswer.length / 6; 
         if (peersAnswer.length % 6 != 0) {
             System.err.println("Warning ! Peers from tracker does not respect specification");
         }
+
         int i = 0, j = 0;
         for (i = 0; i < numberOfPeers; i++) {
+            this.peerIP = "";
+
             for (j = 6 * i; j < 6 * i + 3; j++) {
                 this.peerIP += (int) peersAnswer[j] + ".";
             }
+
             this.peerIP += (int) peersAnswer[j];
             this.peerPort = Integer.parseInt(Util.bytesToHex(Arrays.copyOfRange(peersAnswer, ++j, j + 2)), 16);
+
+            if (!IPv4ValidatorRegex.isValid(this.peerIP) || this.peerPort == 0) {
+                System.err.println("Peer IP or port is not valid : IP=" + this.peerIP + " port=" + this.peerPort);
+                continue;
+            }
+
             // add the peer in the map
             if (this.peersMap.containsKey(this.peerIP)) {
                 ArrayList<Integer> portList = this.peersMap.get(this.peerIP);
@@ -141,6 +157,10 @@ public class Tracker {
                 this.peersMap.put(this.peerIP, new ArrayList<Integer>(Arrays.asList(this.peerPort)));
             }
         }
+    }
+
+    public HashMap<String, ArrayList<Integer>> getPeersMap() {
+        return this.peersMap;
     }
 
 }

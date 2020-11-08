@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
@@ -43,16 +44,20 @@ public class Client {
     private Map<Integer, byte[]> piecesHashes;
     private byte[] data;
 
-    private final String LOCALHOST = "127.0.0.1";
     private int numberOfReceivedPieces = 0;
    
+    private final String LOCALHOST = "127.0.0.1";
 
     public Client(Torrent torrent, Tracker tracker, MsgCoderToWire coder) {
         this.torrent = torrent;
         this.tracker = tracker;
         this.coder = coder;
         this.fileData = new HashMap<Integer, byte[]>();
-        this.createSocket(LOCALHOST, tracker.port);
+        // TODO change when adding multiple peers
+        // for now getting first key
+        Map.Entry<String, ArrayList<Integer>> firstEntry = tracker.getPeersMap().entrySet().iterator().next();
+        // Can have multiple peers on multiple ports for localhost so get first one
+        this.createSocket(firstEntry.getKey(), firstEntry.getValue().get(0));
         this.createOutputStream();
         this.createInputStream();
         this.calculateNumberParts();
@@ -351,7 +356,7 @@ public class Client {
         try {
             firstByte = in.readByte();
         } catch (EOFException e) {
-            System.out.println("No more messages to read ! Is Vuze opened and seeding ?");
+            System.out.println("No more messages to read ! It is the end or Vuze not opened or not seeding ?");
             return false;
         }
         ;
