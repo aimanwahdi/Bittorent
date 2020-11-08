@@ -63,14 +63,12 @@ public class Client {
     public void leecherOrSeeder() throws Exception {
         File sourceFile = new File(
                 this.torrent.torrentFile.getParent() + "/" + this.torrent.getMetadata().get(Torrent.NAME));
-        if (sourceFile.exists() && sourceFile.isFile()) {
-            if (this.verifyContent(sourceFile)) {
+        if (sourceFile.exists() && sourceFile.isFile() && this.verifyContent(sourceFile)) {
                 this.isSeeding = true;
                 System.out.println("Source file found and correct !");
                 System.out.println("SEEDER MODE");
-            }
         } else {
-            System.out.println("Source file not found");
+            System.out.println("Source file not found or incorrect !");
             System.out.println("LEECHER MODE");
         }
     }
