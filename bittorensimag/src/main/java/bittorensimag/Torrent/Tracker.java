@@ -7,6 +7,9 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 // import java.util.Scanner;
 
@@ -14,7 +17,7 @@ import java.security.NoSuchAlgorithmException;
 
 import be.adaxisoft.bencode.BDecoder;
 import be.adaxisoft.bencode.BEncodedValue;
-
+import bittorensimag.Util.BencodeMap;
 import bittorensimag.Util.Util;
 
 public class Tracker {
@@ -28,14 +31,27 @@ public class Tracker {
     // private int numwant;
     private int compact;
     private String event;
+    private String peerIP;
+    private int peerPort;
+    private int numberOfPeers;
 
     private String query;
 
-    private Map<String, BEncodedValue> answer;
+    private HashMap<String, Object> answer = new HashMap<String, Object>();
+    private HashMap<String, ArrayList<Integer>> peersMap = new HashMap<String, ArrayList<Integer>>();
+
+    public final static String INCOMPLETE = "incomplete";
+    public final static String PEERS = "peers";
+    public final static String INTERVAL = "interval";
+    public final static String COMPLETE = "complete";
+    public final static String DOWNLOADED = "downloaded";
+    public final static String MIN_INTERVAL = "min interval";
+
+    private final String[] possibleKeysAnswerInt = { INCOMPLETE, INTERVAL, COMPLETE, DOWNLOADED, MIN_INTERVAL };
 
     public Tracker(Torrent torrent) throws NoSuchAlgorithmException, IOException {
         this.torrent = torrent;
-        this.url = (String) this.torrent.getMetadata().get("announce");
+        this.url = (String) this.torrent.getMetadata().get(Torrent.ANNOUNCE);
         this.peer_id = "-" + "BE" + "0001" + "-" + Util.generateRandomAlphanumeric(12);
         // TODO need to try ports available from 6881 to 6889
         this.port = 6881;
@@ -47,16 +63,16 @@ public class Tracker {
         this.compact = 1;
         this.event = "started";
         this.query = "";
+        this.peerIP = "";
         this.generateUrl();
     }
 
     private void generateUrl() throws UnsupportedEncodingException {
         try {
             this.query += "info_hash=" + URLEncoder.encode(this.torrent.encoded_info_hash, "ISO_8859_1") + "&"
-                    + "peer_id="
-                    + URLEncoder.encode(this.peer_id, "UTF-8") + "&" + "port=" + this.port + "&" + "uploaded="
-                    + this.uploaded + "&" + "downloaded=" + this.downloaded + "&" + "left=" + this.left + "&"
-                    + "compact=" + this.compact + "&" + "event=" + this.event;
+                    + "peer_id=" + URLEncoder.encode(this.peer_id, "UTF-8") + "&" + "port=" + this.port + "&"
+                    + "uploaded=" + this.uploaded + "&" + "downloaded=" + this.downloaded + "&" + "left=" + this.left
+                    + "&" + "compact=" + this.compact + "&" + "event=" + this.event;
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
         }
@@ -89,9 +105,41 @@ public class Tracker {
     private void decodeAnswer(InputStream stream) {
         BDecoder reader = new BDecoder(stream);
         try {
-            this.answer = reader.decodeMap().getMap();
+            Map<String, BEncodedValue> encodedAnswer = reader.decodeMap().getMap();
+
+            BencodeMap.fillBencodeMapBytes(encodedAnswer, this.answer, new String[] { PEERS });
+
+            this.getPeerIPPort();
+
+            BencodeMap.fillBencodeMapInt(encodedAnswer, this.answer, possibleKeysAnswerInt);
         } catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+
+    private void getPeerIPPort() {
+        byte[] peersAnswer = (byte[]) this.answer.get(PEERS);
+
+        this.numberOfPeers = peersAnswer.length / 6;
+        if (peersAnswer.length % 6 != 0) {
+            System.err.println("Warning ! Peers from tracker does not respect specification");
+        }
+        int i = 0, j = 0;
+        for (i = 0; i < numberOfPeers; i++) {
+            for (j = 6 * i; j < 6 * i + 3; j++) {
+                this.peerIP += (int) peersAnswer[j] + ".";
+            }
+            this.peerIP += (int) peersAnswer[j];
+            this.peerPort = Integer.parseInt(Util.bytesToHex(Arrays.copyOfRange(peersAnswer, ++j, j + 2)), 16);
+            // add the peer in the map
+            if (this.peersMap.containsKey(this.peerIP)) {
+                ArrayList<Integer> portList = this.peersMap.get(this.peerIP);
+                if (!portList.contains(this.peerPort)) {
+                    portList.add(this.peerPort);
+                }
+            } else {
+                this.peersMap.put(this.peerIP, new ArrayList<Integer>(Arrays.asList(this.peerPort)));
+            }
         }
     }
 
