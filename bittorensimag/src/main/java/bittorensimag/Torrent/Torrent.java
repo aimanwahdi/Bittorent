@@ -16,6 +16,7 @@ import be.adaxisoft.bencode.BDecoder;
 import be.adaxisoft.bencode.BEncodedValue;
 import be.adaxisoft.bencode.BEncoder;
 import be.adaxisoft.bencode.InvalidBEncodingException;
+import bittorensimag.Util.BencodeMap;
 import bittorensimag.Util.Util;
 
 public class Torrent {
@@ -45,6 +46,10 @@ public class Torrent {
     public final static String PIECE_LENGTH = "piece length";
     public final static String LENGTH = "length";
     public final static String PRIVATE = "private";
+
+    private final String[] possibleKeysDocument = { ANNOUNCE, ANNOUNCE_LIST, COMMENT, CREATED_BY, ENCODING };
+    private final String[] possibleKeysInfoString = { PIECES, NAME, MD5SUM };
+    private final String[] possibleKeysInfoInt = { PIECE_LENGTH, PRIVATE, LENGTH };
 
     public Torrent(File torrentFile) throws FileNotFoundException, IOException, NoSuchAlgorithmException {
         this.torrentFile = torrentFile;
@@ -106,43 +111,9 @@ public class Torrent {
         return this.info;
     }
 
-    // Methods to get keys
-    public String getKeyString(Map<String, BEncodedValue> map, String key) throws InvalidBEncodingException {
-        try {
-            if (map.containsKey(key)) {
-                return map.get(key).getString();
-            } else {
-                System.out.println("Torrent file does not contain key : " + key);
-            }
-        } catch (InvalidBEncodingException e) {
-            e.printStackTrace();
-        }
-        return "";
-    }
-
-    public int getKeyInt(Map<String, BEncodedValue> map, String key) throws InvalidBEncodingException {
-        try {
-            if (map.containsKey(key)) {
-                return map.get(key).getInt();
-            } else {
-                System.out.println("Torrent file does not contain key : " + key);
-            }
-        } catch (InvalidBEncodingException e) {
-            e.printStackTrace();
-        }
-        return 0;
-    }
-
     private HashMap<String, Object> fillMetadata() throws InvalidBEncodingException {
-        String[] possibleKeysDocument = { ANNOUNCE, ANNOUNCE_LIST, COMMENT, CREATED_BY, ENCODING };
-        String[] possibleKeysInfoString = { PIECES, NAME, MD5SUM };
-        String[] possibleKeysInfoInt = { PIECE_LENGTH, PRIVATE, LENGTH };
-
-        // Get all keys of info dictionnary
-        // String keys
-        for (String key : possibleKeysDocument) {
-            this.metadata.put(key, getKeyString(this.document, key));
-        }
+        // Get all keys of document dictionnary
+        BencodeMap.fillBencodeMapString(this.document, this.metadata, possibleKeysDocument);
 
         // Creation date key
         if (this.document.containsKey(CREATION_DATE)) {
@@ -153,14 +124,10 @@ public class Torrent {
         }
 
         // Get all keys of info dictionnary
-        // String keys
-        for (String key : possibleKeysInfoString) {
-            this.metadata.put(key, getKeyString(this.info, key));
-        }
-        // Int keys
-        for (String key : possibleKeysInfoInt) {
-            this.metadata.put(key, getKeyInt(this.info, key));
-        }
+        BencodeMap.fillBencodeMapString(this.info, this.metadata, possibleKeysInfoString);
+
+        BencodeMap.fillBencodeMapInt(this.info, this.metadata, possibleKeysInfoInt);
+
         return this.metadata;
     }
 
