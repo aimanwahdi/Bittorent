@@ -3,24 +3,17 @@ package bittorensimag.Client;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.EOFException;
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 
+import bittorensimag.MessageCoder.MsgCoderFromWire;
 import bittorensimag.MessageCoder.MsgCoderToWire;
 import bittorensimag.Messages.*;
 import bittorensimag.Torrent.*;
-import bittorensimag.Util.Hashage;
 import bittorensimag.Util.Util;
 
 public class Client {
@@ -29,7 +22,8 @@ public class Client {
 
     private final Torrent torrent;
     private final Tracker tracker;
-    private final MsgCoderToWire coder;
+    private final MsgCoderToWire coderToWire;
+    private final MsgCoderFromWire coderFromWire;
     private DataOutputStream dataOut;
     private DataInputStream dataIn;
     private OutputStream out;
@@ -37,17 +31,13 @@ public class Client {
     private Socket socket;
     private boolean isSeeding;
 
-    private Map<Integer, byte[]> dataMap;
-    private Map<Integer, byte[]> piecesHashes;
-    private byte[] data;
+    private boolean stillReading = true;
 
-    private int numberOfReceivedPieces = 0;
-
-    public Client(Torrent torrent, Tracker tracker, MsgCoderToWire coder) {
+    public Client(Torrent torrent, Tracker tracker, MsgCoderToWire coderToWire, MsgCoderFromWire coderFromWire) {
         this.torrent = torrent;
         this.tracker = tracker;
-        this.coder = coder;
-        this.dataMap = new HashMap<Integer, byte[]>();
+        this.coderToWire = coderToWire;
+        this.coderFromWire = coderFromWire;
         // TODO change when adding multiple peers
         // for now getting first key
         Map.Entry<String, ArrayList<Integer>> firstEntry = tracker.getPeersMap().entrySet().iterator().next();
@@ -55,99 +45,102 @@ public class Client {
         this.createSocket(firstEntry.getKey(), firstEntry.getValue().get(0));
         this.createOutputStream();
         this.createInputStream();
-        this.data = new byte[(int) this.torrent.getMetadata().get(Torrent.LENGTH)];
         this.isSeeding = false;
     }
 
-    public void leecherOrSeeder() throws Exception {
-        File sourceFile = new File(
-                this.torrent.torrentFile.getParent() + "/" + this.torrent.getMetadata().get(Torrent.NAME));
-        if (sourceFile.exists() && sourceFile.isFile() && this.verifyContent(sourceFile)) {
-                this.isSeeding = true;
-                System.out.println("Source file found and correct !");
-                System.out.println("SEEDER MODE");
-        } else {
-            System.out.println("Source file not found or incorrect !");
-            System.out.println("LEECHER MODE");
-        }
-    }
+    // THIS IS ALL FOR SEEDER NOT IMPLEMENTED YET
 
-    private boolean verifyContent(File sourceFile) throws Exception {
-        // Creating stream and buffer to read file
-        DataInputStream sourceDataStream = new DataInputStream(new FileInputStream(sourceFile));
+    // public void leecherOrSeeder() throws Exception {
+    // File sourceFile = new File(
+    // this.torrent.torrentFile.getParent() + "/" +
+    // this.torrent.getMetadata().get(Torrent.NAME));
+    // if (sourceFile.exists() && sourceFile.isFile() &&
+    // this.verifyContent(sourceFile)) {
+    // this.isSeeding = true;
+    // System.out.println("Source file found and correct !");
+    // System.out.println("SEEDER MODE");
+    // } else {
+    // System.out.println("Source file not found or incorrect !");
+    // System.out.println("LEECHER MODE");
+    // }
+    // }
 
-        // Creating string of all pieces info of torrent file
-        String piecesString = (String) this.torrent.getMetadata().get(Torrent.PIECES);
-        byte[] piecesBytes = piecesString.getBytes();
+    // private boolean verifyContent(File sourceFile) throws Exception {
+    // // Creating stream and buffer to read file
+    // DataInputStream sourceDataStream = new DataInputStream(new
+    // FileInputStream(sourceFile));
 
-        for (int i = 0; i < this.torrent.numberOfPieces; i++) {
-            ByteArrayOutputStream messageBuffer = new ByteArrayOutputStream();
+    // // Creating string of all pieces info of torrent file
+    // String piecesString = (String)
+    // this.torrent.getMetadata().get(Torrent.PIECES);
+    // byte[] piecesBytes = piecesString.getBytes();
 
-            for (int j = 0; j < Piece.DATA_LENGTH * 2; j++) {
-                try {
-                    int nextByte = sourceDataStream.readByte();
-                    messageBuffer.write(nextByte);
+    // for (int i = 0; i < this.torrent.numberOfPieces; i++) {
+    // ByteArrayOutputStream messageBuffer = new ByteArrayOutputStream();
 
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-            // hash the piece
-            Hashage hasher = new Hashage("SHA-1");
-            byte[] hashOfPieceFile = hasher.hashToByteArray(messageBuffer.toByteArray());
+    // for (int j = 0; j < Piece.DATA_LENGTH * 2; j++) {
+    // try {
+    // int nextByte = sourceDataStream.readUnsignedByte();
+    // messageBuffer.write(nextByte);
 
-            // Substring corresponding to piece hash
-            byte[] hashOfPieceTorrent = Arrays.copyOfRange(piecesBytes, 0, 20);
+    // } catch (IOException e) {
+    // e.printStackTrace();
+    // }
+    // }
+    // // hash the piece
+    // Hashage hasher = new Hashage("SHA-1");
+    // byte[] hashOfPieceFile = hasher.hashToByteArray(messageBuffer.toByteArray());
 
-            if (Arrays.equals(hashOfPieceFile, hashOfPieceTorrent)) {
-                // add the piece in the map
-                this.dataMap.put(i, messageBuffer.toByteArray());
-                this.piecesHashes.put(i, hashOfPieceFile);
-            } else {
-                System.out.println("File is not identical to it's torrent");
-                return false;
-            }
+    // // Substring corresponding to piece hash
+    // byte[] hashOfPieceTorrent = Arrays.copyOfRange(piecesBytes, 0, 20);
 
-        }
-        // TODO last piece wiht this.lastPieceLength
-        return true;
-    }
+    // if (Arrays.equals(hashOfPieceFile, hashOfPieceTorrent)) {
+    // // add the piece in the map
+    // this.dataMap.put(i, messageBuffer.toByteArray());
+    // this.piecesHashes.put(i, hashOfPieceFile);
+    // } else {
+    // System.out.println("File is not identical to it's torrent");
+    // return false;
+    // }
 
-    private boolean verifyHandshake(DataInputStream in) {
-        String sha1 = "";
-        // read protocol name
-        readMessage(in, 19);
+    // }
+    // // TODO last piece wiht this.lastPieceLength
+    // return true;
+    // }
 
-        // read extension bytes
-        readMessage(in, 8);
+    // private boolean verifyHandshake(DataInputStream in) {
+    // String sha1 = "";
+    // // read protocol name
+    // readMessage(in, 19);
 
-        // read sha1 hash
-        for (int i = 0; i < 20; i++) {
-            try {
-                int nextByte = in.readByte();
-                sha1 += nextByte;
+    // // read extension bytes
+    // readMessage(in, 8);
 
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
+    // // read sha1 hash
+    // for (int i = 0; i < 20; i++) {
+    // try {
+    // int nextByte = in.readUnsignedByte();
+    // sha1 += nextByte;
 
-        // read peerId
-        readMessage(in, 20);
+    // } catch (IOException e) {
+    // e.printStackTrace();
+    // }
+    // }
 
-        if (sha1.equals(this.torrent.info_hash)) {
-            return true;
-        }
+    // // read peerId
+    // readMessage(in, 20);
 
-        return false;
-    }
+    // if (sha1.equals(this.torrent.info_hash)) {
+    // return true;
+    // }
 
-
+    // return false;
+    // }
 
     public void startCommunication() {
-        this.sendHandshake();
+        Handshake.sendMessage(this.torrent.info_hash, this.out);
         try {
-            while (this.receivedMsg(this.dataIn, this.out, this.coder)) {
+            while (this.receivedMsg(this.dataIn, this.out, this.coderToWire, this.coderFromWire)) {
                 ;
             }
         } catch (IOException ioe) {
@@ -183,246 +176,115 @@ public class Client {
         }
     }
 
-    private void sendHandshake() {
-        Handshake handshakeMsg = new Handshake(this.torrent.info_hash);
-        try {
-            this.frameMsg(this.coder.toWire(handshakeMsg), this.out);
-        } catch (IOException e) {
-            e.printStackTrace();
+    private boolean receivedMsg(DataInputStream in, OutputStream out, MsgCoderToWire coderToWire,
+            MsgCoderFromWire coderFromWire) throws IOException {
+
+        Object msgReceived = coderFromWire.fromWire(in);
+
+        if (msgReceived instanceof Handshake) {
+            Handshake handshake = (Handshake) msgReceived;
+            // who send handshake first ?
+            // Handshake.sendMessage(this.torrent.info_hash, out);
+            Bitfield.sendMessage(new byte[] { 0, 0 }, out);
+            return true;
         }
-    }
+            
+        // cast to message to get type
+        Msg msg = (Msg) msgReceived;
+        int msgType = msg.getMsgType();
 
-    // writing a message in OutputStream
-    private void frameMsg(byte[] message, OutputStream out) throws IOException {
-        // write message
-        System.out.println("writing");
-        out.write(message);
-        out.flush();
-
-    }
-
-    private void readMessage(DataInputStream in, int length) {
-        for (int i = 0; i < length; i++) {
-            try {
-                int nextByte = in.readByte();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
-    private int readEndPiece(DataInputStream in) throws IOException {
-        // read piece index and begin offset of the first piece
-        int pieceIndex1 = in.readInt();
-        int beginOffset1 = in.readInt();
-
-        // read all the data sent in the first piece
-        this.readData(in, Piece.DATA_LENGTH, pieceIndex1);
-        System.out.println("pieceIndex1 " + pieceIndex1);
-
-        return pieceIndex1;
-    }
-
-    private int readPieces(DataInputStream in, int numberOfParts) throws IOException {
-        int pieceIndex1 = this.readEndPiece(in);
-        // read the rest of the pieces
-        for (int i = 0; i < numberOfParts - 1; i++) {
-
-            int length2 = in.readInt();
-            int type2 = in.readByte();
-            int pieceIndex2 = in.readInt();
-            int beginOffset2 = in.readInt();
-            this.readData(in, Piece.DATA_LENGTH, pieceIndex2);
-
-        }
-
-        return pieceIndex1;
-    }
-
-    private int readLastPiece(DataInputStream in, int numberOfParts) throws IOException {
-        int pieceIndex1 = this.readEndPiece(in);
-        // read the rest of the pieces
-        if (numberOfParts >= 2) {
-            for (int i = 0; i < numberOfParts - 2; i++) {
-
-                int length2 = in.readInt();
-                int type2 = in.readByte();
-                int pieceIndex2 = in.readInt();
-                int beginOffset2 = in.readInt();
-                this.readData(in, Piece.DATA_LENGTH, pieceIndex2);
-
-            }
-            // last one has different length
-            int length2 = in.readInt();
-            int type2 = in.readByte();
-            int pieceIndex2 = in.readInt();
-            int beginOffset2 = in.readInt();
-            this.readData(in, this.torrent.lastPartLength, pieceIndex2);
-        }
-
-        return pieceIndex1;
-    }
-
-    /*
-     * read all the data of a piece and put it the map
-     */
-    private void readData(DataInputStream in, int length, int pieceIndex) {
-        ByteArrayOutputStream messageBuffer = new ByteArrayOutputStream();
-
-        for (int i = 0; i < length; i++) {
-            try {
-                int nextByte = in.readByte();
-                messageBuffer.write(nextByte);
-
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-        // add the piece in the map
-        if (dataMap.containsKey(pieceIndex)) {
-            dataMap.replace(pieceIndex, Util.concat(dataMap.get(pieceIndex), messageBuffer.toByteArray()));
-        } else {
-            dataMap.put(pieceIndex, messageBuffer.toByteArray());
-        }
-    }
-
-    private void sendBitfield(byte[] dataBitfield) throws IOException {
-        Bitfield msgBitfield = new Bitfield(dataBitfield);
-        this.frameMsg(coder.toWire(msgBitfield), this.out);
-    }
-
-    private void sendUnchoke() throws IOException {
-        Msg unchoke = new Msg(Simple.LENGTH, Simple.INTERESTED);
-        this.frameMsg(coder.toWire(unchoke), this.out);
-    }
-
-    private void sendInterested() throws IOException {
-        this.frameMsg(coder.toWire(new Msg(Simple.LENGTH, Simple.INTERESTED)), this.out);
-    }
-
-    private void sendNotInterested() throws IOException {
-        this.frameMsg(coder.toWire(new Msg(Simple.LENGTH, Simple.NOTINTERESTED)), this.out);
-    }
-
-    private void sendHave(int index) throws IOException {
-        Have msgHave = new Have(index);
-        this.frameMsg(coder.toWire(msgHave), this.out);
-    }
-
-    private void sendRequest(int index, int beginOffset) throws IOException {
-        Request msgRequest = new Request(index, beginOffset);
-        this.frameMsg(coder.toWire(msgRequest), this.out);
-    }
-
-    private void sendRequestsForSameIndex(int pieceIndex, int numberOfParts) throws IOException {
-        for (int j = 0; j < numberOfParts; j++) {
-            sendRequest(pieceIndex, j * Piece.DATA_LENGTH);
-        }
-    }
-
-    private void sendLastRequest(int pieceIndex, int numberOfParts) throws IOException {
-        for (int j = 0; j < numberOfParts - 1; j++) {
-            sendRequest(pieceIndex, j * Piece.DATA_LENGTH);
-        }
-        Request msgRequest = new Request(pieceIndex, (numberOfParts - 1) * Piece.DATA_LENGTH,
-                this.torrent.lastPartLength);
-        this.frameMsg(coder.toWire(msgRequest), this.out);
-    }
-
-    private boolean receivedMsg(DataInputStream in, OutputStream Out, MsgCoderToWire coder) throws IOException {
-
-        int firstByte;
-        try {
-            firstByte = in.readByte();
-        } catch (EOFException e) {
-            System.out.println("No more messages to read ! It is the end or Vuze not opened or not seeding ?");
+        if (msgType < 0 || msgType > 8) {
             return false;
         }
-        ;
-        if (firstByte == Handshake.HANDSHAKE_LENGTH) {
-            System.out.println("Received Message : Handshake");
 
-            // reading the rest of handshake msg
-            this.readMessage(in, 67);
+        // cast to specific message and doing logic
+        switch (msgType) {
+            case Simple.CHOKE:
+                Simple choke = (Simple) msgReceived;
+                this.closeConnection(in);
+                break;
+            case Simple.UNCHOKE:
+                Simple unChoke = (Simple) msgReceived;
+                // send first request message
+                // TODO send next request correponding to dataMap our client already has
+                Request.sendMessageForIndex(0, Torrent.numberOfPartPerPiece, out);
+                break;
+            case Simple.INTERESTED:
+                Simple interested = (Simple) msgReceived;
+                Simple.sendMessage(Simple.UNCHOKE, out);
+                break;
+            case Simple.NOTINTERESTED:
+                Simple notInterested = (Simple) msgReceived;
+                Simple.sendMessage(Simple.CHOKE, out);
+                break;
+            case Have.HAVE_TYPE:
+                Have have = (Have) msgReceived;
+                // TODO stocker client dans map pour suivre quel client a quelle pièce
+                break;
+            case Bitfield.BITFIELD_TYPE:
+                Bitfield bitfield = (Bitfield) msgReceived;
+                Simple.sendMessage(Simple.INTERESTED, out);
+                break;
+            case Request.REQUEST_TYPE:
+                Request request = (Request) msgReceived;
+                // TODO send pieces that client requested
+                break;
+            case Piece.PIECE_TYPE:
+                Piece piece = (Piece) msgReceived;
+                this.handlePieceMsg(in, piece, out);
+                break;
+            // TODO if implementing endgame
+            // case CANCEL.CANCEL_TYPE:
 
-            // reading recieved bietfield msg
-            this.readMessage(in, 7);
-
-            this.sendBitfield(new byte[] { 0, 0 });
-            this.sendInterested();
-
-        } else {
-            int secondByte = in.readByte();
-            int thirdByte = in.readByte();
-            int fourthByte = in.readByte();
-
-            int type = in.readByte();
-            System.out.println("Received Message : " + Msg.messagesNames.get(type));
-
-            switch (type) {
-                case Simple.UNCHOKE:
-                    System.out.println("received unchoke message");
-                    // this.sendAllRequests();
-
-                    // send first request message
-                    sendRequest(0, 0);
-                    sendRequest(0, Piece.DATA_LENGTH);
-
-                    break;
-                case Piece.PIECE_TYPE:
-                    System.out.println("received piece message");
-
-                    System.out.println(this.torrent.numberOfPieces);
-                    System.out.println(this.numberOfReceivedPieces);
-
-                    // before before last piece
-                    if (this.numberOfReceivedPieces < this.torrent.numberOfPieces - 2) {
-
-                        int pieceIndex = readPieces(in, this.torrent.numberOfPartPerPiece);
-
-                        this.sendHave(pieceIndex);
-
-                        this.sendRequestsForSameIndex(pieceIndex + 1, this.torrent.numberOfPartPerPiece);
-                    }
-                    // before last piece
-                    else if (this.numberOfReceivedPieces == this.torrent.numberOfPieces - 2) {
-                        int pieceIndex = readPieces(in, this.torrent.numberOfPartPerPiece);
-                        this.sendHave(pieceIndex);
-
-                        this.sendLastRequest(pieceIndex + 1, this.torrent.lastPieceNumberOfPart);
-                        this.sendHave(pieceIndex + 1);
-
-                    }
-                    // last piece
-                    else if (this.numberOfReceivedPieces == this.torrent.numberOfPieces - 1) {
-                        int pieceIndex = readLastPiece(in, this.torrent.lastPieceNumberOfPart);
-                        this.sendHave(pieceIndex);
-                        this.sendNotInterested();
-                    }
-
-                    this.numberOfReceivedPieces++;
-                    break;
-                case Simple.CHOKE:
-                    this.closeConnection(in);
-                // if the type is not correct leave
-                default:
-                    return false;
-            }
+            // break;
+            default:
+                // never reached test before;
+                break;
         }
-        return true;
+
+        return stillReading;
+    }
+
+    // TODO send new request if fail for a part
+    private void handlePieceMsg(DataInputStream in, Piece piece, OutputStream out) throws IOException {
+        int pieceIndex = piece.getPieceIndex();
+        int beginOffset = piece.getBeginOffset();
+        byte[] data = piece.getData();
+
+        this.addToMap(pieceIndex, data);
+
+        if (pieceIndex < Torrent.numberOfPieces - 1) {
+            // request only if last part of piece has been received
+            if (beginOffset == Torrent.pieces_length - Piece.DATA_LENGTH) {
+                Have.sendMessage(pieceIndex, out);
+                Request.sendMessageForIndex(++pieceIndex, Torrent.numberOfPartPerPiece, out);
+            }
+        } else {
+            // last piece
+            if (beginOffset == Torrent.pieces_length - Piece.DATA_LENGTH) {
+                // last part of last piece received
+                Have.sendMessage(pieceIndex, out);
+                Simple.sendMessage(Simple.NOTINTERESTED, out);
+                this.closeConnection(in);
+                stillReading = false;
+        }
+
+    }
+}
+
+    private void addToMap(int pieceIndex, byte[] data) {
+        // add the piece in the map
+        // TODO add beginOffset in case parts do not arrive in order
+        if (Torrent.dataMap.containsKey(pieceIndex)) {
+            Torrent.dataMap.replace(pieceIndex, Util.concat(Torrent.dataMap.get(pieceIndex), data));
+        } else {
+            Torrent.dataMap.put(pieceIndex, data);
+        }
     }
 
     private void closeConnection(DataInputStream in) throws IOException {
         in.close();
         this.socket.close();
-    }
-
-    public byte[] getData() {
-        return this.data;
-    }
-
-    public Map<Integer, byte[]> getMapData() {
-        return this.dataMap;
     }
 
 }
