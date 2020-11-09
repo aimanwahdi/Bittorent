@@ -50,8 +50,7 @@ public class Client {
         this.isSeeding = false;
     }
 
-    // THIS IS ALL FOR SEEDER NOT IMPLEMENTED YET
-
+    // THIS IS FOR SEEDER NOT IMPLEMENTED YET
     public void leecherOrSeeder() throws Exception {
         File sourceFile = new File(
                 this.torrent.torrentFile.getParent() + "/" + this.torrent.getMetadata().get(Torrent.NAME));
