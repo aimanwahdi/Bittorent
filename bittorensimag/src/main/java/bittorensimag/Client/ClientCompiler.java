@@ -30,11 +30,14 @@ public class ClientCompiler {
     public boolean compile() throws Exception {
         this.torrent = new Torrent(sourceTorrent);
         Tracker tracker = new Tracker(this.torrent);
-        tracker.getRequest();
+        tracker.generateUrl(Tracker.EVENT_STARTED);
+        tracker.getRequest(Tracker.EVENT_STARTED);
+
+        // Try each 5 sec to find other peers
         synchronized (this) {
             while (!tracker.foundAnotherPeer()) {
                 this.wait(5000);
-                tracker.getRequest();
+                tracker.getRequest(Tracker.EVENT_STARTED);
             }
         }
         System.out.println("Found another peer for torrent file");
@@ -48,6 +51,8 @@ public class ClientCompiler {
             Output out = new Output((String) this.torrent.getMetadata().get(Torrent.NAME),
                 this.destinationFolder.getAbsolutePath() + "/", fileContent);
             out.generateFile();
+            tracker.generateUrl(Tracker.EVENT_COMPLETED);
+            tracker.getRequest(Tracker.EVENT_COMPLETED);
         }
 
         return true;

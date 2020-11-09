@@ -26,13 +26,12 @@ public class Tracker {
     Torrent torrent;
     private String url;
     private String peer_id;
-    public final int port;
+    public final int PORT = 6969;
     private int uploaded;
     private int downloaded;
     private int left;
     // private int numwant;
     private int compact;
-    private String event;
     private String peerIP;
     private int peerPort;
     private int numberOfPeers;
@@ -49,6 +48,10 @@ public class Tracker {
     public final static String DOWNLOADED = "downloaded";
     public final static String MIN_INTERVAL = "min interval";
 
+    public final static String EVENT_STARTED = "started";
+    public final static String EVENT_COMPLETED = "completed";
+    public final static String EVENT_STOPPED = "stopped";
+
     private final String[] possibleKeysAnswerInt = { INCOMPLETE, INTERVAL, COMPLETE, DOWNLOADED, MIN_INTERVAL };
 
     public Tracker(Torrent torrent) throws NoSuchAlgorithmException, IOException {
@@ -56,37 +59,34 @@ public class Tracker {
         this.url = (String) this.torrent.getMetadata().get(Torrent.ANNOUNCE);
         this.peer_id = "-" + "BE" + "0001" + "-" + Util.generateRandomAlphanumeric(12);
         // TODO need to try ports available from 6881 to 6889
-        this.port = 6969;
         this.downloaded = 0;
         this.uploaded = 0;
         // TODO how to calculate numwant ? Not equal to length in byte of the file ???
         // this.left = 806512;
         // this.numwant = 50;
         this.compact = 1;
-        this.event = "started";
         this.query = "";
         this.peerIP = "";
-        this.generateUrl();
     }
 
-    private void generateUrl() throws UnsupportedEncodingException {
+    public void generateUrl(String event) throws UnsupportedEncodingException {
         try {
-            this.query += "info_hash=" + URLEncoder.encode(this.torrent.encoded_info_hash, "ISO_8859_1") + "&peer_id="
+            this.query = "info_hash=" + URLEncoder.encode(this.torrent.encoded_info_hash, "ISO_8859_1") + "&peer_id="
                     + URLEncoder.encode(this.peer_id, "UTF-8") + "&port=" + Client.PORT + "&uploaded=" + this.uploaded
                     + "&downloaded="
-                    + this.downloaded + "&compact=" + this.compact + "&event=" + this.event;
+                    + this.downloaded + "&compact=" + this.compact + "&event=" + event;
             ;
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
         }
     }
 
-    public void getRequest() throws IOException {
-        System.out.println("Sending GET request to the tracker");
+    public void getRequest(String event) throws IOException {
+        System.out.println("Sending GET request to the tracker for event=" + event);
         URLConnection connection;
         try {
             URL url = new URL(this.url + "?" + this.query);
-            URL newUrl = new URL(url.getProtocol(), url.getHost(), this.port, url.getFile());
+            URL newUrl = new URL(url.getProtocol(), url.getHost(), PORT, url.getFile());
             connection = newUrl.openConnection();
 
             connection.setRequestProperty("Accept-Charset", StandardCharsets.UTF_8.toString());
@@ -179,5 +179,4 @@ public class Tracker {
 
         return true;
     }
-
 }
