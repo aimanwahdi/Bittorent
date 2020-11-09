@@ -40,13 +40,15 @@ public class ClientCompiler {
         System.out.println("Found another peer for torrent file");
         
         Client client = new Client(torrent, tracker, new MsgCoderToWire(), new MsgCoderFromWire());
-        // client.leecherOrSeeder();
+        client.leecherOrSeeder();
         client.startCommunication();
-        byte[] fileContent = MapUtil.convertHashMapToByteArray((int) this.torrent.getMetadata().get(Torrent.LENGTH),
+        if (!client.isSeeding) {
+            byte[] fileContent = MapUtil.convertHashMapToByteArray((int) this.torrent.getMetadata().get(Torrent.LENGTH),
                 Torrent.dataMap);
-        Output out = new Output((String) this.torrent.getMetadata().get(Torrent.NAME),
+            Output out = new Output((String) this.torrent.getMetadata().get(Torrent.NAME),
                 this.destinationFolder.getAbsolutePath() + "/", fileContent);
-        out.generateFile();
+            out.generateFile();
+        }
 
         return true;
     }

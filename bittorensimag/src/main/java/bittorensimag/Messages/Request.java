@@ -54,7 +54,7 @@ public class Request extends Msg {
 		Request msgRequest = new Request(index, beginOffset);
 		coderToWire.frameMsg(coderToWire.toWire(msgRequest), out);
 		// TODO Add info
-		System.out.println("Message Request sent index=" + index);
+		System.out.println("Message Request sent index=" + index + " beginOffset=" + beginOffset);
 	}
 
 	public static void sendMessage(int index, int beginOffset, int pieceLength, OutputStream out) throws IOException {
@@ -62,7 +62,7 @@ public class Request extends Msg {
 		Request msgRequest = new Request(index, beginOffset, pieceLength);
 		coderToWire.frameMsg(coderToWire.toWire(msgRequest), out);
 		// TODO Add info
-		System.out.println("Message Request sent (Last Part) index=" + index);
+		System.out.println("Message Request sent (Last Part) index=" + index + " beginOffset=" + beginOffset);
 	}
 
 	public static void sendMessageForIndex(int index, int numberOfParts, OutputStream out) throws IOException {
