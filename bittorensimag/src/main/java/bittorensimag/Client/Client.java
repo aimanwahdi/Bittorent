@@ -31,7 +31,7 @@ public class Client {
     private OutputStream out;
     private InputStream in;
     private Socket socket;
-    private boolean isSeeding;
+    boolean isSeeding;
 
     private boolean stillReading = true;
 
@@ -54,6 +54,7 @@ public class Client {
     public void leecherOrSeeder() throws Exception {
         File sourceFile = new File(
                 this.torrent.torrentFile.getParent() + "/" + this.torrent.getMetadata().get(Torrent.NAME));
+        // TODO compare content of the file (verify hash)
         if (sourceFile.exists() && sourceFile.isFile() && this.torrent.compareContent(sourceFile)) {
             this.isSeeding = true;
             System.out.println("Source file found and correct !");
@@ -110,14 +111,7 @@ public class Client {
 
         if (msgReceived instanceof Handshake) {
             Handshake handshake = (Handshake) msgReceived;
-            if (handshake.getSha1Hash().compareTo(this.torrent.info_hash) != 0) {
-                System.err.println("Sha1 hash received different from torrent file");
-                return false;
-            }
-            // who send handshake first ?
-            // Handshake.sendMessage(this.torrent.info_hash, out);
-            Bitfield.sendMessage(new byte[] { 0, 0 }, out);
-            return true;
+            return this.handleHandshake(handshake, out);
         }
             
         // cast to message to get type
@@ -147,6 +141,7 @@ public class Client {
             case Simple.NOTINTERESTED:
                 Simple notInterested = (Simple) msgReceived;
                 Simple.sendMessage(Simple.CHOKE, out);
+                this.closeConnection(in);
                 break;
             case Have.HAVE_TYPE:
                 Have have = (Have) msgReceived;
@@ -154,11 +149,13 @@ public class Client {
                 break;
             case Bitfield.BITFIELD_TYPE:
                 Bitfield bitfield = (Bitfield) msgReceived;
-                Simple.sendMessage(Simple.INTERESTED, out);
+                if (!isSeeding) {
+                    Simple.sendMessage(Simple.INTERESTED, out);
+                }
                 break;
             case Request.REQUEST_TYPE:
                 Request request = (Request) msgReceived;
-                // TODO send pieces that client requested
+                this.handleRequest(request, out);
                 break;
             case Piece.PIECE_TYPE:
                 Piece piece = (Piece) msgReceived;
@@ -174,6 +171,31 @@ public class Client {
         }
 
         return stillReading;
+    }
+
+    private boolean handleHandshake(Handshake handshake, OutputStream out2) throws IOException {
+        if (handshake.getSha1Hash().compareTo(this.torrent.info_hash) != 0) {
+            System.err.println("Sha1 hash received different from torrent file");
+            return false;
+        }
+        // who send handshake first ?
+        // Handshake.sendMessage(this.torrent.info_hash, out);
+        if (isSeeding) {
+            Bitfield.sendMessage(new byte[] { (byte) 0xff, (byte) 0xf0 }, out);
+        } else {
+            Bitfield.sendMessage(new byte[] { 0, 0 }, out);
+        }
+        return true;
+    }
+
+    private void handleRequest(Request request, OutputStream out) throws IOException {
+        int pieceIndex = request.getIndex();
+        int beginOffset = request.getBeginOffset();
+        int pieceLength = request.getPieceLength();
+        byte[] pieceData = Torrent.dataMap.get(pieceIndex);
+        byte[] partData = Arrays.copyOfRange(pieceData, beginOffset, beginOffset + pieceLength);
+
+        Piece.sendMessage(pieceLength + Piece.HEADER_LENGTH, pieceIndex, beginOffset, partData, out);
     }
 
     // TODO send new request if fail for a part

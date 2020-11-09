@@ -22,6 +22,18 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
         return bytesArray;
     }
 
+    public int readLengthInt(DataInputStream in, int length) {
+        String lengthString = "";
+        for (int i = 0; i < length; i++) {
+            try {
+                lengthString += Util.intToHexStringWith0(in.readUnsignedByte());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        return Integer.parseInt(lengthString, 16);
+    }
+
     @Override
     public Object fromWire(DataInputStream in) throws IOException {
         int firstByte;
@@ -83,9 +95,11 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
                 case Bitfield.BITFIELD_TYPE:
                     byte[] bitfieldData = this.readLength(in, totalLength - 1);
                     return new Bitfield(bitfieldData);
-                // TODO Request for SEEDER
-                // case Request.REQUEST_TYPE:
-                // return new Request(index, beginOffset, pieceLength);
+                case Request.REQUEST_TYPE:
+                    int requestIndex = in.readInt();
+                    int requestOffset = in.readInt();
+                    int lengthPiece = this.readLengthInt(in, 4);
+                    return new Request(requestIndex, requestOffset, lengthPiece);
                 case Piece.PIECE_TYPE:
                     int pieceIndex = in.readInt();
                     int beginOffset = in.readInt();
