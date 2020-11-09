@@ -10,10 +10,11 @@ import bittorensimag.MessageCoder.*;
 
 public class Handshake {
 	private final int protocolNameLength = 19;
-	private final String protocolName = "BitTorrent protocol";
-	private final long reservedExtensionByte = 0x0;
+	public static final String protocolName = "BitTorrent protocol";
+	private long reservedExtensionByte = 0x0;
 	private String sha1Hash;
 	private byte[] peerId;
+	private byte[] extensionBytes;
 
 	public final static int HANDSHAKE_LENGTH = 19;
 
@@ -23,8 +24,14 @@ public class Handshake {
 		new Random().nextBytes(peerId);
 	}
 
+	public Handshake(String sha1Hash, byte[] peerId, long extensionBytes) {
+		this.sha1Hash = sha1Hash;
+		this.peerId = peerId;
+		this.reservedExtensionByte = extensionBytes;
+	}
+
 	public long getReservedExtensionByte() {
-		return reservedExtensionByte;
+		return this.reservedExtensionByte;
 	}
 
 	public String getSha1Hash() {
@@ -61,44 +68,6 @@ public class Handshake {
 	public void accept(MsgCoderDispatcherToWire dispatcher) throws IOException {
 	dispatcher.toWire(this);
 	}
-
-	// public Handshake fromWire(byte[] input) throws IOException {
-	// ByteArrayInputStream bs = new ByteArrayInputStream(input);
-	// DataInputStream in = new DataInputStream(bs);
-	// int protocolNameLength = in.readUnsignedByte();
-	// // String protocolName = new String(in.re);
-
-	// return new Handshake("test");
-	// }
-
-	// private boolean verifyHandshake(DataInputStream in) {
-	// String sha1 = "";
-	// // read protocol name
-	// readMessage(in, 19);
-
-	// // read extension bytes
-	// readMessage(in, 8);
-
-	// // read sha1 hash
-	// for (int i = 0; i < 20; i++) {
-	// try {
-	// int nextByte = in.readUnsignedByte();
-	// sha1 += nextByte;
-
-	// } catch (IOException e) {
-	// e.printStackTrace();
-	// }
-	// }
-
-	// // read peerId
-	// readMessage(in, 20);
-
-	// if (sha1.equals(this.torrent.info_hash)) {
-	// return true;
-	// }
-
-	// return false;
-	// }
 
 	public static void sendMessage(String info_hash, OutputStream out) {
 		MsgCoderToWire coderToWire = new MsgCoderToWire();
