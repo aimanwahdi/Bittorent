@@ -71,7 +71,8 @@ public class Tracker {
 
     public void generateUrl(String event) throws UnsupportedEncodingException {
         try {
-            this.query = "info_hash=" + URLEncoder.encode(this.torrent.encoded_info_hash, "ISO_8859_1") + "&peer_id="
+            this.query = "info_hash="
+                    + URLEncoder.encode(this.torrent.encoded_info_hash, "ISO_8859_1").replace("+", "%20") + "&peer_id="
                     + URLEncoder.encode(this.peer_id, "UTF-8") + "&port=" + Client.PORT + "&uploaded=" + this.uploaded
                     + "&downloaded="
                     + this.downloaded + "&compact=" + this.compact + "&event=" + event;
