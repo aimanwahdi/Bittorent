@@ -33,6 +33,14 @@ public class Util {
         return data;
     }
 
+    public static long byteArrayToLong(byte[] byteArray) {
+        long value = 0;
+        for (int i = 0; i < byteArray.length; i++) {
+            value += ((long) byteArray[i] & 0xffL) << (8 * i);
+        }
+        return value;
+    }
+
     public static String generateRandomAlphanumeric(int targetStringLength) {
         int leftLimit = 48; // number '0'
         int rightLimit = 122; // letter 'z'
