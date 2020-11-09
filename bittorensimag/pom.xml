@@ -83,6 +83,24 @@
         <version>3.1.0</version>
         <executions>
           <execution>
+            <id>clean-outputFolder</id>
+            <configuration>
+              <excludeDefaultDirectories>true</excludeDefaultDirectories>
+              <filesets>
+                <fileset>
+                  <directory>src/test/outputFolder/</directory>
+                  <includes>
+                    <include>**/*</include>
+                  </includes>
+                </fileset>
+              </filesets>
+            </configuration>
+            <phase>initialize</phase>
+            <goals>
+              <goal>clean</goal>
+            </goals>
+          </execution>
+          <execution>
             <id>clean-cobertura</id>
             <configuration>
               <excludeDefaultDirectories>true</excludeDefaultDirectories>

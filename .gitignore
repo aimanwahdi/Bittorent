@@ -10,3 +10,6 @@
 .settings
 .vscode/
 **/*.DS_Store
+
+# Do not track generated files
+bittorensimag/src/test/outputFolder/*

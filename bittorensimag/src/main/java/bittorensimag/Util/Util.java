@@ -1,10 +1,16 @@
 package bittorensimag.Util;
 
+import java.util.Arrays;
 import java.util.Random;
 
 public class Util {
 
     private static final char[] HEX_ARRAY = "0123456789ABCDEF".toCharArray();
+
+    // convert int to hexadecimal string with trailing 0 from 01 to 0F
+    public static String intToHexStringWith0(int n) {
+        return String.format("%1$02X", n);
+    }
 
     // convert bytearray into a string
     public static String bytesToHex(byte[] bytes) {
@@ -27,6 +33,14 @@ public class Util {
         return data;
     }
 
+    public static long byteArrayToLong(byte[] byteArray) {
+        long value = 0;
+        for (int i = 0; i < byteArray.length; i++) {
+            value += ((long) byteArray[i] & 0xffL) << (8 * i);
+        }
+        return value;
+    }
+
     public static String generateRandomAlphanumeric(int targetStringLength) {
         int leftLimit = 48; // number '0'
         int rightLimit = 122; // letter 'z'
@@ -36,5 +50,14 @@ public class Util {
                 .filter(i -> (i <= 57 || i >= 65) && (i <= 90 || i >= 97)).limit(targetStringLength)
                 .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append).toString();
         return generatedString;
+    }
+    
+    /*
+     * concat two byte arrays 
+     */
+    public static byte[] concat(byte[] first, byte[] second) {
+    	byte[] result = Arrays.copyOf(first, first.length + second.length);
+		System.arraycopy(second, 0, result, first.length, second.length);
+		return result;
     }
 }
