@@ -3,11 +3,13 @@ package bittorensimag.Client;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Map;
 
 import bittorensimag.MessageCoder.MsgCoderFromWire;
@@ -50,92 +52,18 @@ public class Client {
 
     // THIS IS ALL FOR SEEDER NOT IMPLEMENTED YET
 
-    // public void leecherOrSeeder() throws Exception {
-    // File sourceFile = new File(
-    // this.torrent.torrentFile.getParent() + "/" +
-    // this.torrent.getMetadata().get(Torrent.NAME));
-    // if (sourceFile.exists() && sourceFile.isFile() &&
-    // this.verifyContent(sourceFile)) {
-    // this.isSeeding = true;
-    // System.out.println("Source file found and correct !");
-    // System.out.println("SEEDER MODE");
-    // } else {
-    // System.out.println("Source file not found or incorrect !");
-    // System.out.println("LEECHER MODE");
-    // }
-    // }
-
-    // private boolean verifyContent(File sourceFile) throws Exception {
-    // // Creating stream and buffer to read file
-    // DataInputStream sourceDataStream = new DataInputStream(new
-    // FileInputStream(sourceFile));
-
-    // // Creating string of all pieces info of torrent file
-    // String piecesString = (String)
-    // this.torrent.getMetadata().get(Torrent.PIECES);
-    // byte[] piecesBytes = piecesString.getBytes();
-
-    // for (int i = 0; i < this.torrent.numberOfPieces; i++) {
-    // ByteArrayOutputStream messageBuffer = new ByteArrayOutputStream();
-
-    // for (int j = 0; j < Piece.DATA_LENGTH * 2; j++) {
-    // try {
-    // int nextByte = sourceDataStream.readUnsignedByte();
-    // messageBuffer.write(nextByte);
-
-    // } catch (IOException e) {
-    // e.printStackTrace();
-    // }
-    // }
-    // // hash the piece
-    // Hashage hasher = new Hashage("SHA-1");
-    // byte[] hashOfPieceFile = hasher.hashToByteArray(messageBuffer.toByteArray());
-
-    // // Substring corresponding to piece hash
-    // byte[] hashOfPieceTorrent = Arrays.copyOfRange(piecesBytes, 0, 20);
-
-    // if (Arrays.equals(hashOfPieceFile, hashOfPieceTorrent)) {
-    // // add the piece in the map
-    // this.dataMap.put(i, messageBuffer.toByteArray());
-    // this.piecesHashes.put(i, hashOfPieceFile);
-    // } else {
-    // System.out.println("File is not identical to it's torrent");
-    // return false;
-    // }
-
-    // }
-    // // TODO last piece wiht this.lastPieceLength
-    // return true;
-    // }
-
-    // private boolean verifyHandshake(DataInputStream in) {
-    // String sha1 = "";
-    // // read protocol name
-    // readMessage(in, 19);
-
-    // // read extension bytes
-    // readMessage(in, 8);
-
-    // // read sha1 hash
-    // for (int i = 0; i < 20; i++) {
-    // try {
-    // int nextByte = in.readUnsignedByte();
-    // sha1 += nextByte;
-
-    // } catch (IOException e) {
-    // e.printStackTrace();
-    // }
-    // }
-
-    // // read peerId
-    // readMessage(in, 20);
-
-    // if (sha1.equals(this.torrent.info_hash)) {
-    // return true;
-    // }
-
-    // return false;
-    // }
+    public void leecherOrSeeder() throws Exception {
+        File sourceFile = new File(
+                this.torrent.torrentFile.getParent() + "/" + this.torrent.getMetadata().get(Torrent.NAME));
+        if (sourceFile.exists() && sourceFile.isFile() && this.torrent.compareContent(sourceFile)) {
+            this.isSeeding = true;
+            System.out.println("Source file found and correct !");
+            System.out.println("SEEDER MODE");
+        } else {
+            System.out.println("Source file not found or incorrect !");
+            System.out.println("LEECHER MODE");
+        }
+    }
 
     public void startCommunication() {
         Handshake.sendMessage(this.torrent.info_hash, this.out);
@@ -183,6 +111,10 @@ public class Client {
 
         if (msgReceived instanceof Handshake) {
             Handshake handshake = (Handshake) msgReceived;
+            if (handshake.getSha1Hash().compareTo(this.torrent.info_hash) != 0) {
+                System.err.println("Sha1 hash received different from torrent file");
+                return false;
+            }
             // who send handshake first ?
             // Handshake.sendMessage(this.torrent.info_hash, out);
             Bitfield.sendMessage(new byte[] { 0, 0 }, out);

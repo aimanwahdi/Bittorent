@@ -4,19 +4,17 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.IOException;
-import java.util.Arrays;
 
 import bittorensimag.Messages.*;
 import bittorensimag.Util.Util;
 
 public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
 
-    public int[] readMessage(DataInputStream in, int length) {
-        int[] bytesArray = new int[length];
+    public byte[] readLength(DataInputStream in, int length) {
+        byte[] bytesArray = new byte[length];
         for (int i = 0; i < length; i++) {
             try {
-                int nextByte = in.readUnsignedByte();
-                bytesArray[i] = nextByte;
+                bytesArray[i] = in.readByte();
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -43,20 +41,26 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
 
             // reading the protocol name
             // TODO verify it is Bittorent
-            this.readMessage(in, 19);
+            byte[] protocol = this.readLength(in, 19);
+            if (Handshake.protocolName.compareTo(new String(protocol)) != 0) {
+                System.err.println("This is not bittorent protocol");
+                return null;
+            }
 
             // reading extension bytes
-            this.readMessage(in, 8);
+            byte[] extensionBytes = this.readLength(in, 8);
+            long extensionBytesLong = Long.parseLong(Util.bytesToHex(extensionBytes));
 
             // reading sha1 hash
             // TODO verify hash
-            int[] sha1Hash = this.readMessage(in, 20);
+            byte[] sha1HashBytes = this.readLength(in, 20);
+            String sha1Hash = Util.bytesToHex(sha1HashBytes);
 
             // reading peer_id
             // TODO verify peer_id ?
-            this.readMessage(in, 20);
+            byte[] peerId = this.readLength(in, 20);
 
-            return new Handshake(Arrays.toString(sha1Hash));
+            return new Handshake(sha1Hash, peerId, extensionBytesLong);
         } else {
             // read three last bytes of length
             int totalLength = this.readTotalLength(in, firstByte);
@@ -77,7 +81,7 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
                 // case Have.HAVE_TYPE:
                 // return new Have(index);
                 case Bitfield.BITFIELD_TYPE:
-                    byte[] bitfieldData = this.handleBitfield(in, totalLength);
+                    byte[] bitfieldData = this.readLength(in, totalLength - 1);
                     return new Bitfield(bitfieldData);
                 // TODO Request for SEEDER
                 // case Request.REQUEST_TYPE:
@@ -98,23 +102,13 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
         return null;
     }
 
-    private byte[] handleBitfield(DataInputStream in, int lengthMessage) throws IOException {
-        // lengthMessage - mesageType sur 1 byte
-        byte[] bitfieldData = new byte[lengthMessage - 1];
-
-        for (int i = 0; i < lengthMessage - 1; i++) {
-            bitfieldData[i] = in.readByte();
-        }
-        return bitfieldData;
-    }
-
     private int readTotalLength(DataInputStream in, int firstByte) throws IOException {
-        int secondByte = in.readUnsignedByte();
-        int thirdByte = in.readUnsignedByte();
-        int fourthByte = in.readUnsignedByte();
+        String firstByteString = Util.intToHexStringWith0(firstByte);
+        String secondByteString = Util.intToHexStringWith0(in.readUnsignedByte());
+        String thirdByteString = Util.intToHexStringWith0(in.readUnsignedByte());
+        String fourthByteString = Util.intToHexStringWith0(in.readUnsignedByte());
 
-        return Integer.parseInt(Util.intToHexStringWith0(firstByte) + Util.intToHexStringWith0(secondByte)
-                + Util.intToHexStringWith0(thirdByte) + Util.intToHexStringWith0(fourthByte), 16);
+        return Integer.parseInt(firstByteString + secondByteString + thirdByteString + fourthByteString, 16);
     }
 
     /*
@@ -135,17 +129,5 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
             }
         }
         return messageBuffer.toByteArray();
-    }
-
-    private int readEndPiece(DataInputStream in) throws IOException {
-        // read piece index and begin offset of the first piece
-        int pieceIndex1 = in.readInt();
-        int beginOffset1 = in.readInt();
-
-        // read all the data sent in the first piece
-        this.readData(in, Piece.DATA_LENGTH, pieceIndex1);
-        System.out.println("pieceIndex1 " + pieceIndex1);
-
-        return pieceIndex1;
     }
 }
