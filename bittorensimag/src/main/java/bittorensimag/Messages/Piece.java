@@ -1,10 +1,7 @@
 package bittorensimag.Messages;
 
-import java.io.ByteArrayInputStream;
-import java.io.DataInputStream;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
+import java.io.OutputStream;
 
 import bittorensimag.MessageCoder.*;
 
@@ -57,5 +54,14 @@ public class Piece extends Msg {
 
 	public void setData(byte[] data) {
 		this.data = data;
+	}
+
+	public static void sendMessage(int msgLength, int index, int beginOffset, byte[] data, OutputStream out)
+			throws IOException {
+		MsgCoderToWire coderToWire = new MsgCoderToWire();
+		Piece piece = new Piece(msgLength, index, beginOffset, data);
+		coderToWire.frameMsg(coderToWire.toWire(piece), out);
+		// TODO Add info
+		System.out.println("Message Piece sent index=" + index + " beginOffset=" + beginOffset);
 	}
 }

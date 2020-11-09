@@ -1,12 +1,12 @@
 package bittorensimag.Torrent;
 
 import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
@@ -177,42 +177,39 @@ public class Torrent {
     // TODO for SEEDER
     public boolean compareContent(File sourceFile) throws Exception {
         // Creating stream and buffer to read file
-        DataInputStream sourceDataStream = new DataInputStream(new FileInputStream(sourceFile));
+        byte[] fileContent = Files.readAllBytes(sourceFile.toPath());
 
         // Creating string of all pieces info of torrent file
         String piecesString = (String) this.getMetadata().get(Torrent.PIECES);
         byte[] piecesBytes = piecesString.getBytes();
+        int i;
+        for (i = 0; i < Torrent.numberOfPieces - 1; i++) {
+            byte[] byteArray = Arrays.copyOfRange(fileContent, i * Torrent.pieces_length,
+                    (i + 1) * Torrent.pieces_length);
 
-        for (int i = 0; i < Torrent.numberOfPieces; i++) {
-            ByteArrayOutputStream messageBuffer = new ByteArrayOutputStream();
 
-            for (int j = 0; j < Piece.DATA_LENGTH * 2; j++) {
-                try {
-                    int nextByte = sourceDataStream.readUnsignedByte();
-                    messageBuffer.write(nextByte);
-
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
             // hash the piece
             Hashage hasher = new Hashage("SHA-1");
-            byte[] hashOfPieceFile = hasher.hashToByteArray(messageBuffer.toByteArray());
+            byte[] hashOfPieceFile = hasher.hashToByteArray(byteArray);
 
             // Substring corresponding to piece hash
             byte[] hashOfPieceTorrent = Arrays.copyOfRange(piecesBytes, 0, 20);
 
-            if (Arrays.equals(hashOfPieceFile, hashOfPieceTorrent)) {
-                // add the piece in the map
-                Torrent.dataMap.put(i, messageBuffer.toByteArray());
-                Torrent.piecesHashes.put(i, hashOfPieceFile);
-            } else {
-                System.out.println("File is not identical to it's torrent");
-                return false;
-            }
+            // TODO Verify Hash
+            // if (Arrays.equals(hashOfPieceFile, hashOfPieceTorrent)) {
+            // // add the piece in the map
+            Torrent.dataMap.put(i, byteArray);
+            // Torrent.piecesHashes.put(i, hashOfPieceFile);
+            // } else {
+            // System.out.println("File is not identical to it's torrent");
+            // return false;
+            // }
 
         }
-        // TODO last piece wiht this.lastPieceLength
+        // put last piece in Map
+        byte[] byteArray = Arrays.copyOfRange(fileContent, i * Torrent.pieces_length,
+                (i * Torrent.pieces_length) + Torrent.lastPieceLength);
+        Torrent.dataMap.put(i, byteArray);
         return true;
     }
 }
