@@ -183,6 +183,16 @@
               <goal>exec</goal>
             </goals>
           </execution>
+          <execution>
+            <id>start-seeders</id>
+            <configuration>
+              <executable>./src/test/script/multi-transmission.sh</executable>
+            </configuration>
+            <phase>compile</phase>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+          </execution>
         </executions>
       </plugin>
       <plugin>
