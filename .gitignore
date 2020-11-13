@@ -13,3 +13,6 @@
 
 # Do not track generated files
 bittorensimag/src/test/outputFolder/*
+
+# Do not track output of nohup
+bittorensimag/mvn-compile.out
