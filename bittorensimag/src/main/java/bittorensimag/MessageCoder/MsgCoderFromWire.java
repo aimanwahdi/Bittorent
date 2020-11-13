@@ -90,8 +90,9 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
                 case Simple.NOTINTERESTED:
                     return new Simple(Simple.NOTINTERESTED);
                 // TODO Have for SEEDER
-                // case Have.HAVE_TYPE:
-                // return new Have(index);
+                case Have.HAVE_TYPE:
+                    int index = this.readLengthInt(in, totalLength - 1);
+                    return new Have(index);
                 case Bitfield.BITFIELD_TYPE:
                     byte[] bitfieldData = this.readLength(in, totalLength - 1);
                     return new Bitfield(bitfieldData);
