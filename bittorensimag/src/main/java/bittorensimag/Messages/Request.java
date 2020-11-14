@@ -3,10 +3,14 @@ package bittorensimag.Messages;
 import java.io.IOException;
 import java.io.OutputStream;
 
+import org.apache.log4j.Logger;
+
 import bittorensimag.MessageCoder.*;
 import bittorensimag.Torrent.Torrent;
 
 public class Request extends Msg {
+	private static final Logger LOG = Logger.getLogger(Request.class);
+
 	private int index;
 	private int beginOffset;
 	private int pieceLength;
@@ -54,7 +58,7 @@ public class Request extends Msg {
 		Request msgRequest = new Request(index, beginOffset);
 		coderToWire.frameMsg(coderToWire.toWire(msgRequest), out);
 		// TODO Add info
-		System.out.println("Message Request sent index=" + index + " beginOffset=" + beginOffset);
+		LOG.debug("Message Request sent for index=" + index + " beginOffset=" + beginOffset);
 	}
 
 	public static void sendMessage(int index, int beginOffset, int pieceLength, OutputStream out) throws IOException {
@@ -62,7 +66,7 @@ public class Request extends Msg {
 		Request msgRequest = new Request(index, beginOffset, pieceLength);
 		coderToWire.frameMsg(coderToWire.toWire(msgRequest), out);
 		// TODO Add info
-		System.out.println("Message Request sent (Last Part) index=" + index + " beginOffset=" + beginOffset);
+		LOG.debug("Message Request sent (Last Part) index=" + index + " beginOffset=" + beginOffset);
 	}
 
 	public static void sendMessageForIndex(int index, int numberOfParts, OutputStream out) throws IOException {

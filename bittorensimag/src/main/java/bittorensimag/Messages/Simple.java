@@ -5,10 +5,14 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 
+import org.apache.log4j.Logger;
+
 import bittorensimag.MessageCoder.*;
 
 // Messages with length = 1
 public class Simple extends Msg {
+    private static final Logger LOG = Logger.getLogger(Simple.class);
+
     protected int msgType;
 
     public final static int LENGTH = 1;
@@ -45,6 +49,6 @@ public class Simple extends Msg {
         MsgCoderToWire coderToWire = new MsgCoderToWire();
         Simple msg = new Simple(msgType);
         coderToWire.frameMsg(coderToWire.toWire(msg), out);
-        System.out.println("Message " + Msg.messagesNames.get(msgType) + " sent");
+        LOG.debug("Message " + Msg.messagesNames.get(msgType) + " sent");
     }
 }

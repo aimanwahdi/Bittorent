@@ -6,9 +6,13 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Random;
 
+import org.apache.log4j.Logger;
+
 import bittorensimag.MessageCoder.*;
 
 public class Handshake {
+	private static final Logger LOG = Logger.getLogger(Handshake.class);
+
 	private final int protocolNameLength = 19;
 	public static final String protocolName = "BitTorrent protocol";
 	private long reservedExtensionByte = 0x0;
@@ -69,14 +73,10 @@ public class Handshake {
 	dispatcher.toWire(this);
 	}
 
-	public static void sendMessage(String info_hash, OutputStream out) {
+	public static void sendMessage(String info_hash, OutputStream out) throws IOException {
 		MsgCoderToWire coderToWire = new MsgCoderToWire();
 		Handshake handshakeMsg = new Handshake(info_hash);
-		try {
-			coderToWire.frameMsg(coderToWire.toWire(handshakeMsg), out);
-			System.out.println("Message Handshake sent");
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		coderToWire.frameMsg(coderToWire.toWire(handshakeMsg), out);
+		LOG.debug("Sending Handshakw message for info_hash : " + info_hash);
 	}
 }

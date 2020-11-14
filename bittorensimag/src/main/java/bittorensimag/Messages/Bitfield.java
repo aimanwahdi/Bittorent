@@ -5,9 +5,13 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 
+import org.apache.log4j.Logger;
+
 import bittorensimag.MessageCoder.*;
 
 public class Bitfield extends Msg {
+	private static final Logger LOG = Logger.getLogger(Bitfield.class);
+
 	private byte[] bitfieldData = new byte[2];
 
 	public final static int HEADER_LENGTH = 1;
@@ -38,7 +42,7 @@ public class Bitfield extends Msg {
 		MsgCoderToWire coderToWire = new MsgCoderToWire();
 		Bitfield msgBitfield = new Bitfield(dataBitfield);
 		coderToWire.frameMsg(coderToWire.toWire(msgBitfield), out);
-		System.out.println("Message Bitfield sent");
+		LOG.debug("Message Bitfield sent with data : " + dataBitfield);
 }
 
 }

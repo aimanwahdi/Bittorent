@@ -3,9 +3,13 @@ package bittorensimag.Messages;
 import java.io.IOException;
 import java.io.OutputStream;
 
+import org.apache.log4j.Logger;
+
 import bittorensimag.MessageCoder.*;
 
 public class Piece extends Msg {
+	private static final Logger LOG = Logger.getLogger(Piece.class);
+
 	private int pieceIndex;
 	private int beginOffset;
 	private byte[] data;
@@ -61,7 +65,6 @@ public class Piece extends Msg {
 		MsgCoderToWire coderToWire = new MsgCoderToWire();
 		Piece piece = new Piece(msgLength, index, beginOffset, data);
 		coderToWire.frameMsg(coderToWire.toWire(piece), out);
-		// TODO Add info
-		System.out.println("Message Piece sent index=" + index + " beginOffset=" + beginOffset);
+		LOG.debug("Message Piece sent index=" + index + " beginOffset=" + beginOffset);
 	}
 }

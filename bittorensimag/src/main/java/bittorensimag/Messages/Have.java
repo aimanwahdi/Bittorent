@@ -5,9 +5,13 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 
+import org.apache.log4j.Logger;
+
 import bittorensimag.MessageCoder.*;
 
 public class Have extends Msg {
+	private static final Logger LOG = Logger.getLogger(Have.class);
+
 	private int index;
 
 	public final static int HAVE_LENGTH = 5;
@@ -30,8 +34,7 @@ public class Have extends Msg {
 		MsgCoderToWire coderToWire = new MsgCoderToWire();
 		Have have = new Have(index);
 		coderToWire.frameMsg(coderToWire.toWire(have), out);
-		// TODO Add info
-		System.out.println("Message Have sent index=" + index);
+		LOG.debug("Message Have sent for index=" + index);
 	}
 
 }
