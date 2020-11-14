@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.lang.RuntimeException;
 import java.security.NoSuchAlgorithmException;
 
+import org.apache.log4j.Logger;
+
 /**
  * Main class for the command-line Bittorensimag CLient.
  *
@@ -13,19 +15,21 @@ import java.security.NoSuchAlgorithmException;
  * @date 06/10/20
  */
 public class ClientMain {
+    private static Logger LOG = Logger.getLogger(ClientMain.class);
     public static void main(String[] args)
             throws Exception {
+        LOG.info("Bittorensimag client started");
         boolean error = false;
         final ClientOptions options = new ClientOptions();
         try {
             options.parseArgs(args);
         } catch (RuntimeException e) {
-            System.err.println("Error during option parsing:\n" + e.getMessage());
-            options.displayUsage();
+            LOG.fatal("Error during option parsing:\n" + e.getMessage());
+            ClientOptions.displayUsage();
             System.exit(1);
         }
         if (options.getNoArgs()) {
-            options.displayUsage();
+            ClientOptions.displayUsage();
             return;
         }
 
@@ -38,8 +42,8 @@ public class ClientMain {
         File destinationFolder = options.getDestinationFolder();
 
         if (sourceFile == null || destinationFolder == null) {
-            System.err.println("Impossible to start, need source file and destination folder");
-            options.displayUsage();
+            LOG.fatal("Impossible to start, need source file and destination folder");
+            ClientOptions.displayUsage();
             error = true;
         } else {
             ClientCompiler compiler = new ClientCompiler(options, sourceFile, destinationFolder);

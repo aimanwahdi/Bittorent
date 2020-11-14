@@ -3,6 +3,9 @@ package bittorensimag.Client;
 import java.io.File;
 import java.lang.RuntimeException;
 
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+
 /**
  * User-specified options influencing the compilation.
  *
@@ -10,10 +13,16 @@ import java.lang.RuntimeException;
  * @date 06/10/20
  */
 public class ClientOptions {
+    public final static Logger LOG = Logger.getLogger(ClientOptions.class);
+
+    public static final int QUIET = 0;
+    public static final int INFO = 1;
+    public static final int DEBUG = 2;
+    public static final int TRACE = 3; // TODO not used for now
 
     private boolean noArgs = false;
-    private boolean debug = false;
-    private boolean info = false;
+    private boolean error = false;
+    private int debug = 0;
     private boolean printBanner = false;
     private boolean finishedOptions = false;
     private File sourceFile = null;
@@ -31,7 +40,7 @@ public class ClientOptions {
 
     public static final String ANSI_BOLD = "\033[0;1m";
 
-    public void parseArgs(String[] args) throws RuntimeException {
+    public void parseArgs(String[] args) throws CLIException {
         if (args.length == 0) {
             noArgs = true;
             return;
@@ -40,7 +49,7 @@ public class ClientOptions {
             String argument = args[i];
             if (argument.charAt(0) == '-') {
                 if (finishedOptions) {
-                    throw new RuntimeException("Cannot pass options after files");
+                    throw new CLIException("Cannot pass options after files");
                 }
                 switch (argument.charAt(1)) {
                     // bonus afficher banniere en asci art
@@ -48,13 +57,13 @@ public class ClientOptions {
                         printBanner = true;
                         break;
                     case 'd':
-                        debug = true;
+                        debug = 2;
                         break;
                     case 'i':
-                        info = true;
+                        debug = 1;
                         break;
                     default:
-                        throw new RuntimeException("This option does not exist for the bittorent client");
+                        throw new CLIException("This option does not exist for the bittorent client");
                 }
             } else { // si l'argument n'a pas de tiret, alors c'est un fichier
                 finishedOptions = true;
@@ -63,22 +72,38 @@ public class ClientOptions {
                     if (this.sourceFile == null) {
                         this.sourceFile = f;
                     } else {
-                        System.err.println("You passed in multiple torrent files");
-                        this.displayUsage();
+                        throw new CLIException("You passed in multiple torrent files");
                     }
                 } else if (f.isDirectory() && f.exists()) {
                     if (this.destinationFolder == null && this.sourceFile != null) {
                         this.destinationFolder = f;
                     } else if (this.destinationFolder == null && this.sourceFile == null) {
-                        System.err.println("You must pass torrent file first");
-                        this.displayUsage();
+                        throw new CLIException("You must pass torrent file first");
                     } else {
-                        System.err.println("You passed in multiple output folders");
-                        this.displayUsage();
+                        throw new CLIException("You passed in multiple output folders");
                     }
                 }
             }
         }
+        Logger logger = Logger.getRootLogger();
+        // map command-line debug option to log4j's level.
+        switch (getDebug()) {
+            case QUIET:
+                break; // keep default
+            case INFO:
+                logger.setLevel(Level.INFO);
+                break;
+            case DEBUG:
+                logger.setLevel(Level.DEBUG);
+                break;
+            case TRACE:
+                logger.setLevel(Level.TRACE);
+                break;
+            default:
+                logger.setLevel(Level.ALL);
+                break;
+        }
+        logger.info("Application-wide trace level set to " + logger.getLevel());
     }
 
     public boolean getNoArgs() {
@@ -89,12 +114,8 @@ public class ClientOptions {
         return printBanner;
     }
 
-    public boolean getDebug() {
+    public int getDebug() {
         return debug;
-    }
-
-    public boolean getInfo() {
-        return info;
     }
 
     public File getSourceFile() {
@@ -120,7 +141,7 @@ public class ClientOptions {
                 "╚═════╝ ╚═╝   ╚═╝      ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═══╝╚══════╝╚═╝╚═╝     ╚═╝╚═╝  ╚═╝ ╚═════╝ ");
     }
 
-    protected void displayUsage() {
+    protected static void displayUsage() {
         System.out.println("Usage : \n bittorensimag [-b] [-d] [-i]  <file.torrent> <download folder>");
         System.out.println(ANSI_BOLD + ANSI_YELLOW + "-b  " + ANSI_RESET + ANSI_CYAN + "(banner)" + ANSI_RESET
                 + "\t: print banner of the project");
