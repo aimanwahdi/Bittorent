@@ -12,6 +12,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Map;
 
+import org.apache.log4j.Logger;
+
 import bittorensimag.MessageCoder.MsgCoderFromWire;
 import bittorensimag.MessageCoder.MsgCoderToWire;
 import bittorensimag.Messages.*;
@@ -19,6 +21,8 @@ import bittorensimag.Torrent.*;
 import bittorensimag.Util.Util;
 
 public class Client {
+    private static final Logger LOG = Logger.getLogger(Client.class);
+
     public final static String IP = "127.0.0.1";
     public final static int PORT = 6882;
 
@@ -54,53 +58,60 @@ public class Client {
     public void leecherOrSeeder() throws Exception {
         File sourceFile = new File(
                 this.torrent.torrentFile.getParent() + "/" + this.torrent.getMetadata().get(Torrent.NAME));
+        LOG.debug("Verifying source file : " + sourceFile);
         // TODO compare content of the file (verify hash)
         if (sourceFile.exists() && sourceFile.isFile() && this.torrent.compareContent(sourceFile)) {
             this.isSeeding = true;
-            System.out.println("Source file found and correct !");
-            System.out.println("SEEDER MODE");
+            LOG.info("Source file found and correct !");
+            LOG.info("SEEDER MODE");
         } else {
-            System.out.println("Source file not found or incorrect !");
-            System.out.println("LEECHER MODE");
+            LOG.info("Source file not found or incorrect !");
+            LOG.info("LEECHER MODE");
         }
     }
 
-    public void startCommunication() {
+    public void startCommunication() throws IOException {
+        LOG.debug("Starting communication with the peer");
         Handshake.sendMessage(this.torrent.info_hash, this.out);
         try {
             while (this.receivedMsg(this.dataIn, this.out, this.coderToWire, this.coderFromWire)) {
                 ;
             }
         } catch (IOException ioe) {
-            ioe.printStackTrace();
-            System.err.println("Error handling client: " + ioe.getMessage());
+            LOG.error("Error handling client: " + ioe.getMessage());
 
         }
 
     }
 
     private void createOutputStream() {
+        LOG.debug("Creation of the OutputStream");
         ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
         this.dataOut = new DataOutputStream(byteStream);
+        LOG.debug("OutputStream created");
     }
 
     private void createInputStream() {
         InputStream inputStream;
         try {
+            LOG.debug("Creation of the InputStream");
             inputStream = this.socket.getInputStream();
             this.dataIn = new DataInputStream(inputStream);
+            LOG.debug("InputStream created");
         } catch (IOException e) {
-            e.printStackTrace();
+            LOG.fatal("Could not create InputStream");
         }
 
     }
 
     private void createSocket(String destAddr, int destPort) {
         try {
+            LOG.debug("Creration of the socket for " + destAddr + " and port " + destPort);
             this.socket = new Socket(destAddr, destPort);
             this.out = this.socket.getOutputStream();
+            LOG.debug("Socket created");
         } catch (IOException e) {
-            e.printStackTrace();
+            LOG.fatal("Could not create Socket");
         }
     }
 
@@ -121,7 +132,7 @@ public class Client {
         if (msgType < 0 || msgType > 8) {
             return false;
         }
-
+        LOG.debug("Handling " + msgType + " message");
         // cast to specific message and doing logic
         switch (msgType) {
             case Simple.CHOKE:
@@ -174,8 +185,9 @@ public class Client {
     }
 
     private boolean handleHandshake(Handshake handshake, OutputStream out2) throws IOException {
+        LOG.debug("Handling Handshake message");
         if (handshake.getSha1Hash().compareTo(this.torrent.info_hash) != 0) {
-            System.err.println("Sha1 hash received different from torrent file");
+            LOG.error("Sha1 hash received different from torrent file");
             return false;
         }
         // who send handshake first ?
@@ -189,20 +201,25 @@ public class Client {
     }
 
     private void handleRequest(Request request, OutputStream out) throws IOException {
+        LOG.debug("Handling Request message");
         int pieceIndex = request.getIndex();
         int beginOffset = request.getBeginOffset();
         int pieceLength = request.getPieceLength();
         byte[] pieceData = Torrent.dataMap.get(pieceIndex);
         byte[] partData = Arrays.copyOfRange(pieceData, beginOffset, beginOffset + pieceLength);
 
+        LOG.debug("Sending pieces for");
         Piece.sendMessage(pieceLength + Piece.HEADER_LENGTH, pieceIndex, beginOffset, partData, out);
     }
 
     // TODO send new request if fail for a part
     private void handlePieceMsg(DataInputStream in, Piece piece, OutputStream out) throws IOException {
+        LOG.debug("Handling Piece message");
         int pieceIndex = piece.getPieceIndex();
         int beginOffset = piece.getBeginOffset();
         byte[] data = piece.getData();
+
+        LOG.debug("Piece with index " + pieceIndex + " with beginOffset " + beginOffset);
 
         this.addToMap(pieceIndex, data);
 
@@ -226,9 +243,10 @@ public class Client {
 }
 
     private void addToMap(int pieceIndex, byte[] data) {
-        // add the piece in the map
+        LOG.debug("Adding piece " + pieceIndex + " to the map");
         // TODO add beginOffset in case parts do not arrive in order
         if (Torrent.dataMap.containsKey(pieceIndex)) {
+            LOG.debug("Piece already in map, concatenate to piece");
             Torrent.dataMap.replace(pieceIndex, Util.concat(Torrent.dataMap.get(pieceIndex), data));
         } else {
             Torrent.dataMap.put(pieceIndex, data);
@@ -238,6 +256,7 @@ public class Client {
     private void closeConnection(DataInputStream in) throws IOException {
         in.close();
         this.socket.close();
+        LOG.info("Connection closed");
     }
 
 }
