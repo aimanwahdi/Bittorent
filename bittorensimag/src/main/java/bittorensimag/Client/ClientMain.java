@@ -16,14 +16,14 @@ import org.apache.log4j.Logger;
  */
 public class ClientMain {
     private static Logger LOG = Logger.getLogger(ClientMain.class);
-    public static void main(String[] args)
-            throws Exception {
+
+    public static void main(String[] args) throws FileNotFoundException, NoSuchAlgorithmException, IOException {
         LOG.info("Bittorensimag client started");
         boolean error = false;
         final ClientOptions options = new ClientOptions();
         try {
             options.parseArgs(args);
-        } catch (RuntimeException e) {
+        } catch (RuntimeException | CLIException e) {
             LOG.fatal("Error during option parsing:\n" + e.getMessage());
             ClientOptions.displayUsage();
             System.exit(1);

@@ -1,6 +1,9 @@
 package bittorensimag.Client;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.security.NoSuchAlgorithmException;
 
 import org.apache.log4j.Logger;
 
@@ -30,7 +33,7 @@ public class ClientCompiler {
         this.destinationFolder = destinationFolder;
     }
 
-    public boolean compile() throws Exception {
+    public boolean compile() throws FileNotFoundException, NoSuchAlgorithmException, IOException {
         LOG.debug("Creating torrent " + sourceTorrent + " with destination folder " + destinationFolder);
         this.torrent = new Torrent(sourceTorrent);
         Tracker tracker = new Tracker(this.torrent);
@@ -40,12 +43,16 @@ public class ClientCompiler {
         tracker.generateUrl(Tracker.EVENT_STARTED);
         LOG.debug("Successfully generated GET Request");
         tracker.getRequest(Tracker.EVENT_STARTED);
-        
 
         // Try each 5 sec to find other peers
         synchronized (this) {
             while (!tracker.foundAnotherPeer()) {
-                this.wait(5000);
+                LOG.warn("There is not another peer please restart other client(s)");
+                try {
+                    this.wait(5000);
+                } catch (InterruptedException e) {
+                    LOG.fatal("Thread got interrupted while waiting " + e.getMessage());
+                }
                 tracker.getRequest(Tracker.EVENT_STARTED);
             }
         }

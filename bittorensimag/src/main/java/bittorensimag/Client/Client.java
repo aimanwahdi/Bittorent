@@ -24,7 +24,7 @@ public class Client {
     private static final Logger LOG = Logger.getLogger(Client.class);
 
     public final static String IP = "127.0.0.1";
-    public final static int PORT = 6882;
+    public final static int PORT = 6881;
 
     private final Torrent torrent;
     private final Tracker tracker;
@@ -55,7 +55,7 @@ public class Client {
     }
 
     // THIS IS FOR SEEDER NOT IMPLEMENTED YET
-    public void leecherOrSeeder() throws Exception {
+    public void leecherOrSeeder() {
         File sourceFile = new File(
                 this.torrent.torrentFile.getParent() + "/" + this.torrent.getMetadata().get(Torrent.NAME));
         LOG.debug("Verifying source file : " + sourceFile);
