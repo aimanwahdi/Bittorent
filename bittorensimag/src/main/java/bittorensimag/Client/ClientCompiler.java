@@ -56,7 +56,7 @@ public class ClientCompiler {
                 tracker.getRequest(Tracker.EVENT_STARTED);
             }
         }
-        LOG.info("Found another peer for torrent file : " + sourceTorrent);
+        LOG.info("Found another peer for torrent file : " + sourceTorrent.getName());
         
         Client client = new Client(torrent, tracker, new MsgCoderToWire(), new MsgCoderFromWire());
         client.leecherOrSeeder();

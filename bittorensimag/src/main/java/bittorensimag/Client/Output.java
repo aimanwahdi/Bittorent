@@ -26,14 +26,14 @@ public class Output {
 			//Creer un nouveau fichier 
 			//verifier s'il n'existe pas 
 			if (f.createNewFile()) {
-				LOG.info("File created in " + f.getAbsolutePath());
 				Files.write(f.toPath(), this.data);
+				LOG.info("File " + f.getName() + " created in " + destination);
 			} else {
-				LOG.warn("File already exists");
+				LOG.warn("File " + f.getName() + " already exists");
 			}
 			    
 		} catch (IOException e) {
-			LOG.fatal("Impossible to generate file" + e.getMessage());
+			LOG.fatal("Impossible to generate output file" + e.getMessage());
 		}
 		
 	}

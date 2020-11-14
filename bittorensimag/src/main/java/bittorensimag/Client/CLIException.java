@@ -12,6 +12,5 @@ public class CLIException extends Exception {
 
     public CLIException(final String message) {
         super(message);
-        ClientOptions.displayUsage();
     }
 }
