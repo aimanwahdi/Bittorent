@@ -99,7 +99,6 @@ public class MsgCoderToWire implements MsgCoderDispatcherToWire {
 		out.writeInt(msg.getPieceIndex());
 		out.writeInt(msg.getBeginOffset());
 
-		// should be corrected later because right now it doesn't write all the data
 		out.write(msg.getData());
 
 		out.flush();

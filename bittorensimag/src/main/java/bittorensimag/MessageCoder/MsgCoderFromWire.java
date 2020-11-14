@@ -5,10 +5,13 @@ import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.IOException;
 
+import org.apache.log4j.Logger;
+
 import bittorensimag.Messages.*;
 import bittorensimag.Util.Util;
 
 public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
+    private static final Logger LOG = Logger.getLogger(MsgCoderFromWire.class);
 
     public byte[] readLength(DataInputStream in, int length) {
         byte[] bytesArray = new byte[length];
@@ -16,7 +19,7 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
             try {
                 bytesArray[i] = in.readByte();
             } catch (IOException e) {
-                e.printStackTrace();
+                LOG.error("Error while reading bytes for length " + length);
             }
         }
         return bytesArray;
@@ -28,7 +31,7 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
             try {
                 lengthString += Util.intToHexStringWith0(in.readUnsignedByte());
             } catch (IOException e) {
-                e.printStackTrace();
+                LOG.error("Error while reading ints for length " + length);
             }
         }
         return Integer.parseInt(lengthString, 16);
@@ -40,7 +43,7 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
         try {
             firstByte = in.readUnsignedByte();
         } catch (EOFException e) {
-            System.out.println("No more messages to read ! It is the end or Vuze not opened or not seeding ?");
+            LOG.error("No more messages to read ! It is the end or other client not opened or not seeding ?");
             return -1;
         }
         return fromWire(firstByte, in);
@@ -49,13 +52,13 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
     @Override
     public Object fromWire(int firstByte, DataInputStream in) throws IOException {
         if (firstByte == Handshake.HANDSHAKE_LENGTH) {
-            System.out.println("Received Message : Handshake");
+            LOG.debug("Received Message : Handshake");
 
             // reading the protocol name
             // TODO verify it is Bittorent
             byte[] protocol = this.readLength(in, 19);
             if (Handshake.protocolName.compareTo(new String(protocol)) != 0) {
-                System.err.println("This is not bittorent protocol");
+                LOG.error("This is not bittorent protocol");
                 return null;
             }
 
@@ -79,7 +82,7 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
 
             // read type
             int type = in.readUnsignedByte();
-            System.out.println("Received Message : " + Msg.messagesNames.get(type));
+            LOG.debug("Received Message : " + Msg.messagesNames.get(type));
             switch (type) {
                 case Simple.CHOKE:
                     return new Simple(Simple.CHOKE);
@@ -89,7 +92,6 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
                     return new Simple(Simple.INTERESTED);
                 case Simple.NOTINTERESTED:
                     return new Simple(Simple.NOTINTERESTED);
-                // TODO Have for SEEDER
                 case Have.HAVE_TYPE:
                     int index = this.readLengthInt(in, totalLength - 1);
                     return new Have(index);
@@ -140,7 +142,7 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
                 messageBuffer.write(nextByte);
 
             } catch (IOException e) {
-                e.printStackTrace();
+                LOG.error("Error while reading data inside piece message");
             }
         }
         return messageBuffer.toByteArray();
