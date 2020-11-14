@@ -27,9 +27,9 @@ public class Output {
 			//verifier s'il n'existe pas 
 			if (f.createNewFile()) {
 				Files.write(f.toPath(), this.data);
-				LOG.info("File " + f.getName() + " created in " + destination);
+				LOG.info("File \"" + f.getName() + "\" created in " + destination);
 			} else {
-				LOG.warn("File " + f.getName() + " already exists");
+				LOG.warn("File \"" + f.getName() + "\" already exists");
 			}
 			    
 		} catch (IOException e) {
