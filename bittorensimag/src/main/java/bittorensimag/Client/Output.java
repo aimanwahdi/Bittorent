@@ -26,10 +26,10 @@ public class Output {
 			//Creer un nouveau fichier 
 			//verifier s'il n'existe pas 
 			if (f.createNewFile()) {
-				System.out.println("File created in " + f.getAbsolutePath());
+				LOG.info("File created in " + f.getAbsolutePath());
 				Files.write(f.toPath(), this.data);
 			} else {
-				System.out.println("File already exists");
+				LOG.warn("File already exists");
 			}
 			    
 		} catch (IOException e) {
