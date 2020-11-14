@@ -2,6 +2,8 @@ package bittorensimag.Client;
 
 import java.io.File;
 
+import org.apache.log4j.Logger;
+
 import bittorensimag.MessageCoder.MsgCoderFromWire;
 import bittorensimag.MessageCoder.MsgCoderToWire;
 import bittorensimag.Torrent.*;
@@ -14,6 +16,7 @@ import bittorensimag.Util.MapUtil;
  * @date 06/10/20
  */
 public class ClientCompiler {
+    private static final Logger LOG = Logger.getLogger(ClientCompiler.class);
 
     private final ClientOptions clientOptions;
     private final File sourceTorrent;
@@ -28,10 +31,16 @@ public class ClientCompiler {
     }
 
     public boolean compile() throws Exception {
+        LOG.debug("Creating torrent " + sourceTorrent + " with destination folder " + destinationFolder);
         this.torrent = new Torrent(sourceTorrent);
         Tracker tracker = new Tracker(this.torrent);
+        LOG.debug("Creation of torrent object and tracker successful");
+
+        LOG.debug("Generating GET Request for tracker");
         tracker.generateUrl(Tracker.EVENT_STARTED);
+        LOG.debug("Successfully generated GET Request");
         tracker.getRequest(Tracker.EVENT_STARTED);
+        
 
         // Try each 5 sec to find other peers
         synchronized (this) {
@@ -40,7 +49,7 @@ public class ClientCompiler {
                 tracker.getRequest(Tracker.EVENT_STARTED);
             }
         }
-        System.out.println("Found another peer for torrent file");
+        LOG.info("Found another peer for torrent file : " + sourceTorrent);
         
         Client client = new Client(torrent, tracker, new MsgCoderToWire(), new MsgCoderFromWire());
         client.leecherOrSeeder();
