@@ -4,7 +4,11 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 
+import org.apache.log4j.Logger;
+
 public class Output {
+	private static final Logger LOG = Logger.getLogger(Output.class);
+
 	private final String nomFichier;
 	private final String destination;
 	private byte[] data;
@@ -29,8 +33,7 @@ public class Output {
 			}
 			    
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			LOG.fatal("Impossible to generate file" + e.getMessage());
 		}
 		
 	}
