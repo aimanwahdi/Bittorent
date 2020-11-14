@@ -3,18 +3,21 @@ package bittorensimag.Util;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
+import org.apache.log4j.Logger;
+
 public class Hashage {
-	private String algorithme; // l'algorithme utilisé pour le hashage peut être SHA-1, SHA-256...
+	private static final Logger LOG = Logger.getLogger(Hashage.class);
+
+	private String algorithm; // l'algorithme utilisé pour le hashage peut être SHA-1, SHA-256...
 	MessageDigest md = null;
 
-	public Hashage(String algorithme) {
+	public Hashage(String algorithm) {
 		super();
-		this.algorithme = algorithme;
+		this.algorithm = algorithm;
 		try {
-			this.md = MessageDigest.getInstance(algorithme);
+			this.md = MessageDigest.getInstance(algorithm);
 		} catch (NoSuchAlgorithmException e) {
-			System.err.println("This algorithm is not correct");
-			e.printStackTrace();
+			LOG.fatal("The algorithm " + algorithm + " is not correct");
 		}
 	}
 
@@ -23,11 +26,11 @@ public class Hashage {
 	 * 
 	 * @param message
 	 * @return
-	 * @throws Exception
+	 * @throws NoSuchAlgorithmException
 	 */
 
-	public String hashToHex(String message) throws Exception {
-		MessageDigest md = MessageDigest.getInstance(algorithme);
+	public String hashToHex(String message) throws NoSuchAlgorithmException {
+		MessageDigest md = MessageDigest.getInstance(algorithm);
 		md.update(message.getBytes());
 		byte[] digest = md.digest();
 		StringBuffer hexString = new StringBuffer();
