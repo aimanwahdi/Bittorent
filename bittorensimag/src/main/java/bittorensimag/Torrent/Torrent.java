@@ -14,6 +14,8 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.log4j.Logger;
+
 import be.adaxisoft.bencode.BDecoder;
 import be.adaxisoft.bencode.BEncodedValue;
 import be.adaxisoft.bencode.BEncoder;
@@ -24,6 +26,8 @@ import bittorensimag.Util.MapUtil;
 import bittorensimag.Util.Util;
 
 public class Torrent {
+    private static final Logger LOG = Logger.getLogger(Torrent.class);
+
     public final File torrentFile;
     private FileInputStream inputStream;
     private BDecoder reader;
@@ -46,6 +50,7 @@ public class Torrent {
     public static Map<Integer, byte[]> piecesHashes = new HashMap<Integer, byte[]>();
 
     public final static String INFO = "info";
+    public final static String SHA_1 = "SHA-1";
 
     public final static String ANNOUNCE = "announce";
     public final static String ANNOUNCE_LIST = "announce-list";
@@ -70,9 +75,8 @@ public class Torrent {
         this.torrentFile = torrentFile;
         try {
             this.inputStream = new FileInputStream(torrentFile);
-            // TODO add log level
         } catch (FileNotFoundException e) {
-            e.printStackTrace();
+            LOG.fatal("Could not create FileInputStream for torrent : " + torrentFile);
         }
         this.reader = new BDecoder(inputStream);
         try {
@@ -81,7 +85,7 @@ public class Torrent {
                 this.info = this.document.get(INFO).getMap();
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            LOG.fatal("Could not decode document map from torrent file");
         }
         this.hashInfo();
         this.metadata = fillMetadata();
@@ -90,7 +94,7 @@ public class Torrent {
 
     public boolean hasInfo() {
         if (this.document.containsKey(INFO)) {
-            System.out.println("The info field exists");
+            LOG.debug("The info field exists");
             return true;
         } else {
             return false;
@@ -102,14 +106,14 @@ public class Torrent {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try {
             BEncoder.encode(info, baos);
-        } catch (IOException e1) {
-            e1.printStackTrace();
+        } catch (IOException e) {
+            LOG.fatal("Could not encode info dictionnary");
         }
         MessageDigest md = null;
         try {
-            md = MessageDigest.getInstance("SHA-1");
+            md = MessageDigest.getInstance(SHA_1);
         } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
+            LOG.fatal("Algorithm " + SHA_1 + " does not exist");
         }
         md.update(baos.toByteArray());
         byte[] digest = md.digest();
@@ -120,6 +124,7 @@ public class Torrent {
     }
 
     private void setFields() {
+        LOG.debug("Calculating number of parts and number of pieces");
         this.calculateNumberParts();
         this.calculateNumberPieces();
     }
@@ -141,6 +146,7 @@ public class Torrent {
             Long date = this.document.get(CREATION_DATE).getLong() * 1000L;
             if (date != 0) {
                 this.metadata.put(CREATION_DATE, new Date(date));
+                LOG.debug("Added creation date to torrent metadata");
             }
         }
 
@@ -160,7 +166,7 @@ public class Torrent {
         Torrent.pieces_length = (int) this.getMetadata().get(PIECE_LENGTH);
         Torrent.numberOfPartPerPiece = pieces_length / Piece.DATA_LENGTH;
         if (pieces_length % Piece.DATA_LENGTH != 0) {
-            System.err.println("Warning : pieces length is not a multiple of 16Kb");
+            LOG.error("Warning : pieces length is not a multiple of 16Kb");
         }
     }
 
@@ -175,9 +181,14 @@ public class Torrent {
     }
 
     // TODO for SEEDER
-    public boolean compareContent(File sourceFile) throws Exception {
+    public boolean compareContent(File sourceFile) {
         // Creating stream and buffer to read file
-        byte[] fileContent = Files.readAllBytes(sourceFile.toPath());
+        byte[] fileContent = null;
+        try {
+            fileContent = Files.readAllBytes(sourceFile.toPath());
+        } catch (IOException e) {
+            LOG.fatal("Could not readAllBytes from source file : " + sourceFile);
+        }
 
         // Creating string of all pieces info of torrent file
         String piecesString = (String) this.getMetadata().get(Torrent.PIECES);
@@ -198,10 +209,11 @@ public class Torrent {
             // TODO Verify Hash
             // if (Arrays.equals(hashOfPieceFile, hashOfPieceTorrent)) {
             // // add the piece in the map
+            LOG.debug("Adding piece " + i + " to dataMap");
             Torrent.dataMap.put(i, byteArray);
             // Torrent.piecesHashes.put(i, hashOfPieceFile);
             // } else {
-            // System.out.println("File is not identical to it's torrent");
+            // LOG.error("File is not identical to it's torrent");
             // return false;
             // }
 
@@ -209,6 +221,7 @@ public class Torrent {
         // put last piece in Map
         byte[] byteArray = Arrays.copyOfRange(fileContent, i * Torrent.pieces_length,
                 (i * Torrent.pieces_length) + Torrent.lastPieceLength);
+        LOG.debug("Adding piece " + i + "(last) to dataMap");
         Torrent.dataMap.put(i, byteArray);
         return true;
     }

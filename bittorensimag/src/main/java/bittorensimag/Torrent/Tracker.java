@@ -13,6 +13,8 @@ import java.util.HashMap;
 import java.util.Map;
 // import java.util.Scanner;
 
+import org.apache.log4j.Logger;
+
 import java.security.NoSuchAlgorithmException;
 
 import be.adaxisoft.bencode.BDecoder;
@@ -23,6 +25,8 @@ import bittorensimag.Util.IPv4ValidatorRegex;
 import bittorensimag.Util.Util;
 
 public class Tracker {
+    private static final Logger LOG = Logger.getLogger(Tracker.class);
+
     Torrent torrent;
     private String url;
     private String peer_id;
@@ -58,7 +62,6 @@ public class Tracker {
         this.torrent = torrent;
         this.url = (String) this.torrent.getMetadata().get(Torrent.ANNOUNCE);
         this.peer_id = "-" + "BE" + "0001" + "-" + Util.generateRandomAlphanumeric(12);
-        // TODO need to try ports available from 6881 to 6889
         this.downloaded = 0;
         this.uploaded = 0;
         // TODO how to calculate numwant ? Not equal to length in byte of the file ???
@@ -78,12 +81,12 @@ public class Tracker {
                     + this.downloaded + "&compact=" + this.compact + "&event=" + event;
             ;
         } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
+            LOG.error("Error during URLencoding of the query " + e.getMessage());
         }
     }
 
     public void getRequest(String event) throws IOException {
-        System.out.println("Sending GET request to the tracker for event=" + event);
+        LOG.debug("Sending GET request to the tracker for event=" + event);
         URLConnection connection;
         try {
             URL url = new URL(this.url + "?" + this.query);
@@ -96,15 +99,14 @@ public class Tracker {
                 // Debug to output answer of the tracker
                 // try (Scanner scanner = new Scanner(stream)) {
                 // String output = scanner.useDelimiter("\\A").next();
-                // System.out.println(output);
+                // LOG.debug("Received from tracker :\n"+ output);
                 // }
                 this.decodeAnswer(stream);
             } catch (IOException e) {
-                System.err.println("Did not receive the answer of the tracker is he running in the background ?");
+                LOG.error("Did not receive the answer of the tracker is he running in the background ?");
             }
-
         } catch (IOException e) {
-            e.printStackTrace();
+            LOG.fatal("Could not open new connection with tracker " + e.getMessage());
         }
     }
 
@@ -119,21 +121,21 @@ public class Tracker {
 
             MapUtil.fillBencodeMapInt(encodedAnswer, this.answer, possibleKeysAnswerInt);
         } catch (IOException e) {
-            e.printStackTrace();
+            LOG.fatal("Could not decode answer received from the tracker");
         }
     }
 
     private void getPeerIPPort() {
         byte[] peersAnswer = (byte[]) this.answer.get(PEERS);
 
-        if (peersAnswer.length == 0) {
-            System.out.println("No peers in the swarm (from tracker)");
+        if (peersAnswer.length == 1) {
+            LOG.warn("No other peer in the swarm (from tracker)");
             return;
         }
 
         this.numberOfPeers = peersAnswer.length / 6; 
         if (peersAnswer.length % 6 != 0) {
-            System.err.println("Warning ! Peers from tracker does not respect specification");
+            LOG.warn("Peers recieved from tracker does not respect specification : length=" + peersAnswer.length);
         }
 
         int i = 0, j = 0;
@@ -148,7 +150,7 @@ public class Tracker {
             this.peerPort = Integer.parseInt(Util.bytesToHex(Arrays.copyOfRange(peersAnswer, ++j, j + 2)), 16);
 
             if (!IPv4ValidatorRegex.isValid(this.peerIP) || this.peerPort == 0) {
-                System.err.println("Peer IP or port is not valid : IP=" + this.peerIP + " port=" + this.peerPort);
+                LOG.error("Peer IP or port is not valid : IP=" + this.peerIP + " port=" + this.peerPort);
                 continue;
             }
 
@@ -160,9 +162,11 @@ public class Tracker {
             if (this.peersMap.containsKey(this.peerIP)) {
                 ArrayList<Integer> portList = this.peersMap.get(this.peerIP);
                 if (!portList.contains(this.peerPort)) {
+                    LOG.debug("Adding new port=" + this.peerPort + " for entry IP=" + this.peerIP);
                     portList.add(this.peerPort);
                 }
             } else {
+                LOG.debug("Creating new entry for IP=" + this.peerIP + " and port=" + this.peerPort);
                 this.peersMap.put(this.peerIP, new ArrayList<Integer>(Arrays.asList(this.peerPort)));
             }
         }
@@ -174,10 +178,8 @@ public class Tracker {
 
     public boolean foundAnotherPeer() throws IOException {
         if (this.peersMap.isEmpty()) {
-            System.err.println("There is not another peer please restart Vuze");
             return false;
         }
-
         return true;
     }
 }
