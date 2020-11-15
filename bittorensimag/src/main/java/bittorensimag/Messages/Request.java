@@ -18,14 +18,6 @@ public class Request extends Msg {
 	public final static int REQUEST_LENGTH = 13;
 	public final static int REQUEST_TYPE = 6;
 
-	// Constructor with piece length default
-	public Request(int index, int beginOffset) {
-		super(REQUEST_LENGTH, REQUEST_TYPE);
-		this.index = index;
-		this.beginOffset = beginOffset;
-		this.pieceLength = Piece.DATA_LENGTH;
-	}
-
 	public Request(int index, int beginOffset, int pieceLength) {
 		super(REQUEST_LENGTH, REQUEST_TYPE);
 		this.index = index;
@@ -53,28 +45,22 @@ public class Request extends Msg {
 		this.pieceLength = pieceLength;
 	}
 
-	public static void sendMessage(int index, int beginOffset, OutputStream out) throws IOException {
+	// Private method to send one request message
+	private static void sendMessage(int index, int beginOffset, int pieceLength, OutputStream out) throws IOException {
 		MsgCoderToWire coderToWire = new MsgCoderToWire();
-		Request msgRequest = new Request(index, beginOffset);
+		Request msgRequest = new Request(index, beginOffset, pieceLength);
 		coderToWire.frameMsg(coderToWire.toWire(msgRequest), out);
 		LOG.debug("Message Request sent for index=" + index + " beginOffset=" + beginOffset);
 	}
 
-	public static void sendMessage(int index, int beginOffset, int pieceLength, OutputStream out) throws IOException {
-		MsgCoderToWire coderToWire = new MsgCoderToWire();
-		Request msgRequest = new Request(index, beginOffset, pieceLength);
-		coderToWire.frameMsg(coderToWire.toWire(msgRequest), out);
-		LOG.debug("Message Request sent (Last Part) index=" + index + " beginOffset=" + beginOffset);
-	}
-
 	public static void sendMessageForIndex(int index, int numberOfParts, OutputStream out) throws IOException {
 		for (int j = 0; j < numberOfParts - 1; j++) {
-			Request.sendMessage(index, j * Piece.DATA_LENGTH, out);
+			Request.sendMessage(index, j * Piece.DATA_LENGTH, Piece.DATA_LENGTH, out);
 		}
 		if (index == Torrent.numberOfPieces - 1) {
 			Request.sendMessage(index, (numberOfParts - 1) * Piece.DATA_LENGTH, Torrent.lastPartLength, out);
 		} else {
-			Request.sendMessage(index, (numberOfParts - 1) * Piece.DATA_LENGTH, out);
+			Request.sendMessage(index, (numberOfParts - 1) * Piece.DATA_LENGTH, Piece.DATA_LENGTH, out);
 		}
 	}
 }
