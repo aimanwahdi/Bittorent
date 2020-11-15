@@ -38,7 +38,6 @@ public class Torrent {
     public String info_hash;
     String encoded_info_hash;
 
-    // TODO change to static (complex)
     public static int numberOfPartPerPiece;
     public static int numberOfPieces;
     public static int lastPieceLength;
@@ -183,7 +182,6 @@ public class Torrent {
 
     }
 
-    // TODO for SEEDER
     public boolean compareContent(File sourceFile) {
         // Creating stream and buffer to read file
         byte[] fileContent = null;

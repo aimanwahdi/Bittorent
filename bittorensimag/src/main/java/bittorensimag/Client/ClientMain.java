@@ -46,7 +46,7 @@ public class ClientMain {
             ClientOptions.displayUsage();
             error = true;
         } else {
-            ClientCompiler compiler = new ClientCompiler(options, sourceFile, destinationFolder);
+            ClientCompiler compiler = new ClientCompiler(sourceFile, destinationFolder);
             if (compiler.compile()) {
                 error = false;
             } else {

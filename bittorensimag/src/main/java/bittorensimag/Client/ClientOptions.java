@@ -20,7 +20,6 @@ public class ClientOptions {
     public static final int TRACE = 3; // TODO not used for now
 
     private boolean noArgs = false;
-    private boolean error = false;
     private int debug = 0;
     private boolean printBanner = false;
     private boolean finishedOptions = false;

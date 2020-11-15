@@ -21,14 +21,12 @@ import bittorensimag.Util.MapUtil;
 public class ClientCompiler {
     private static final Logger LOG = Logger.getLogger(ClientCompiler.class);
 
-    private final ClientOptions clientOptions;
     private final File sourceTorrent;
     private final File destinationFolder;
     private Torrent torrent;
 
-    public ClientCompiler(ClientOptions clientOptions, File sourceTorrent, File destinationFolder) {
+    public ClientCompiler(File sourceTorrent, File destinationFolder) {
         super();
-        this.clientOptions = clientOptions;
         this.sourceTorrent = sourceTorrent;
         this.destinationFolder = destinationFolder;
     }

@@ -57,7 +57,6 @@ public class Request extends Msg {
 		MsgCoderToWire coderToWire = new MsgCoderToWire();
 		Request msgRequest = new Request(index, beginOffset);
 		coderToWire.frameMsg(coderToWire.toWire(msgRequest), out);
-		// TODO Add info
 		LOG.debug("Message Request sent for index=" + index + " beginOffset=" + beginOffset);
 	}
 
@@ -65,7 +64,6 @@ public class Request extends Msg {
 		MsgCoderToWire coderToWire = new MsgCoderToWire();
 		Request msgRequest = new Request(index, beginOffset, pieceLength);
 		coderToWire.frameMsg(coderToWire.toWire(msgRequest), out);
-		// TODO Add info
 		LOG.debug("Message Request sent (Last Part) index=" + index + " beginOffset=" + beginOffset);
 	}
 

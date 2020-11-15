@@ -64,8 +64,7 @@ public class Tracker {
         this.peer_id = "-" + "BE" + "0001" + "-" + Util.generateRandomAlphanumeric(12);
         this.downloaded = 0;
         this.uploaded = 0;
-        // TODO how to calculate numwant ? Not equal to length in byte of the file ???
-        // this.left = 806512;
+        // this.left = Torrent.length;
         // this.numwant = 50;
         this.compact = 1;
         this.query = "";
