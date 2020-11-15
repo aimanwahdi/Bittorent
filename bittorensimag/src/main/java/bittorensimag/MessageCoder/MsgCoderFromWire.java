@@ -43,7 +43,7 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
         try {
             firstByte = in.readUnsignedByte();
         } catch (EOFException e) {
-            LOG.error("No more messages to read ! It is the end or other client not opened or not seeding ?");
+            LOG.error("No more messages to read ! Closing socket");
             return -1;
         }
         return fromWire(firstByte, in);
