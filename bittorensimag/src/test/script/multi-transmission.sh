@@ -58,6 +58,7 @@ done
 # On lance wireshark sur loopback en affichant bittorrent
 echo "Lancement de wireshark"
 wireshark -i lo -Y bittorrent -k -S -l </dev/null &>/dev/null &
+sleep 1
 
 # On lance toutes les instances de firefox
 echo "Ouverture des liens dans firefox"
