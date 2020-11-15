@@ -68,8 +68,9 @@ public class Torrent {
     public final static String PRIVATE = "private";
 
     private final String[] possibleKeysDocument = { ANNOUNCE, ANNOUNCE_LIST, COMMENT, CREATED_BY, ENCODING };
-    private final String[] possibleKeysInfoString = { PIECES, NAME, MD5SUM };
+    private final String[] possibleKeysInfoString = { NAME };
     private final String[] possibleKeysInfoInt = { PIECE_LENGTH, PRIVATE, LENGTH };
+    private final String[] possibleKeysInfoBytes = { PIECES, MD5SUM };
 
     public Torrent(File torrentFile) throws FileNotFoundException, IOException, NoSuchAlgorithmException {
         this.torrentFile = torrentFile;
@@ -155,6 +156,8 @@ public class Torrent {
 
         MapUtil.fillBencodeMapInt(this.info, this.metadata, possibleKeysInfoInt);
 
+        MapUtil.fillBencodeMapBytes(this.info, this.metadata, possibleKeysInfoBytes);
+
         return this.metadata;
     }
 
@@ -191,8 +194,8 @@ public class Torrent {
         }
 
         // Creating string of all pieces info of torrent file
-        String piecesString = (String) this.getMetadata().get(Torrent.PIECES);
-        byte[] piecesBytes = piecesString.getBytes();
+        byte[] piecesBytes = (byte[]) this.getMetadata().get(Torrent.PIECES);
+
         int i;
         for (i = 0; i < Torrent.numberOfPieces - 1; i++) {
             byte[] byteArray = Arrays.copyOfRange(fileContent, i * Torrent.pieces_length,
@@ -200,23 +203,22 @@ public class Torrent {
 
 
             // hash the piece
-            Hashage hasher = new Hashage("SHA-1");
+            Hashage hasher = new Hashage(SHA_1);
             byte[] hashOfPieceFile = hasher.hashToByteArray(byteArray);
 
             // Substring corresponding to piece hash
-            byte[] hashOfPieceTorrent = Arrays.copyOfRange(piecesBytes, 0, 20);
+            byte[] hashOfPieceTorrent = Arrays.copyOfRange(piecesBytes, i * 20, (i + 1) * 20);
 
             // TODO Verify Hash
-            // if (Arrays.equals(hashOfPieceFile, hashOfPieceTorrent)) {
-            // // add the piece in the map
-            LOG.debug("Adding piece " + i + " to dataMap");
-            Torrent.dataMap.put(i, byteArray);
-            // Torrent.piecesHashes.put(i, hashOfPieceFile);
-            // } else {
-            // LOG.error("File is not identical to it's torrent");
-            // return false;
-            // }
-
+            if (Arrays.equals(hashOfPieceFile, hashOfPieceTorrent)) {
+                // add the piece in the map
+                LOG.debug("Adding piece " + i + " to dataMap and piecesHashes");
+                Torrent.dataMap.put(i, byteArray);
+                Torrent.piecesHashes.put(i, hashOfPieceFile);
+            } else {
+                LOG.error("File is not identical to it's torrent");
+                return false;
+            }
         }
         // put last piece in Map
         byte[] byteArray = Arrays.copyOfRange(fileContent, i * Torrent.pieces_length,

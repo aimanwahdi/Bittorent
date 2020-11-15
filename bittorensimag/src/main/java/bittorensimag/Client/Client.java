@@ -120,6 +120,11 @@ public class Client {
 
         Object msgReceived = coderFromWire.fromWire(in);
 
+        if (msgReceived instanceof Integer && (int) msgReceived == -1) {
+            this.closeConnection(in);
+            return false;
+        }
+
         if (msgReceived instanceof Handshake) {
             Handshake handshake = (Handshake) msgReceived;
             return this.handleHandshake(handshake, out);

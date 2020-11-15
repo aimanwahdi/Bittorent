@@ -77,6 +77,6 @@ public class Handshake {
 		MsgCoderToWire coderToWire = new MsgCoderToWire();
 		Handshake handshakeMsg = new Handshake(info_hash);
 		coderToWire.frameMsg(coderToWire.toWire(handshakeMsg), out);
-		LOG.debug("Sending Handshakw message for info_hash : " + info_hash);
+		LOG.debug("Sending Handshake message for info_hash : " + info_hash);
 	}
 }
