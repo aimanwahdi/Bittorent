@@ -11,7 +11,7 @@ do
     PORT=$(ps x | grep transmission-daemon | sed -n "$line"p | awk '{ for(i=1;i<=NF;i++) { if ($i ~ "-p") { print $(i+1) } } }')
     echo "Transmission daemon trouvé avec le port $PORT"
     echo "Suppression des torrents..."
-    transmission-remote $PORT -t all -rad
+    transmission-remote $PORT -t all -r
     sleep 1
 done
 

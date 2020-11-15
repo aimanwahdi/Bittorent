@@ -24,8 +24,8 @@ torrent=./src/test/exampleTorrents/Aigle.jpg.torrent
 file=./src/test/exampleFiles/Aigle.jpg
 fileFolder=$HOME/Downloads
 
-# Copy file to fileFolder to be detected by transmission
-cp $file $fileFolder
+# Copy file to fileFolder to be detected by transmission, uncomment if necessary
+# cp $file $fileFolder
 
 # Start of opentracker
 ../../opentracker/opentracker.debug -i 127.0.0.1 -p 6969 </dev/null &>/dev/null &
