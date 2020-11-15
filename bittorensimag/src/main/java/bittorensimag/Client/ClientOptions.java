@@ -1,7 +1,6 @@
 package bittorensimag.Client;
 
 import java.io.File;
-import java.lang.RuntimeException;
 
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;

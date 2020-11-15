@@ -1,7 +1,5 @@
 package bittorensimag.Messages;
 
-import java.io.ByteArrayInputStream;
-import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 

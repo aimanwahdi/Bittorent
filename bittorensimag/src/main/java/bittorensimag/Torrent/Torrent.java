@@ -209,7 +209,6 @@ public class Torrent {
             // Substring corresponding to piece hash
             byte[] hashOfPieceTorrent = Arrays.copyOfRange(piecesBytes, i * 20, (i + 1) * 20);
 
-            // TODO Verify Hash
             if (Arrays.equals(hashOfPieceFile, hashOfPieceTorrent)) {
                 // add the piece in the map
                 LOG.debug("Adding piece " + i + " to dataMap and piecesHashes");

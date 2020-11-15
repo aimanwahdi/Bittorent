@@ -59,7 +59,6 @@ public class Client {
         File sourceFile = new File(
                 this.torrent.torrentFile.getParent() + "/" + this.torrent.getMetadata().get(Torrent.NAME));
         LOG.debug("Verifying source file : " + sourceFile);
-        // TODO compare content of the file (verify hash)
         if (sourceFile.exists() && sourceFile.isFile() && this.torrent.compareContent(sourceFile)) {
             this.isSeeding = true;
             LOG.info("Source file found and correct !");
@@ -195,6 +194,8 @@ public class Client {
             LOG.error("Sha1 hash received different from torrent file");
             return false;
         }
+        // TODO store peer_id ?
+
         // who send handshake first ?
         // Handshake.sendMessage(this.torrent.info_hash, out);
         if (isSeeding) {

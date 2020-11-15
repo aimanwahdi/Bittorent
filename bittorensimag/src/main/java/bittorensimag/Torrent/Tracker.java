@@ -33,7 +33,7 @@ public class Tracker {
     public final int PORT = 6969;
     private int uploaded;
     private int downloaded;
-    private int left;
+    // private int left;
     // private int numwant;
     private int compact;
     private String peerIP;

@@ -1,7 +1,5 @@
 package bittorensimag.Messages;
 
-import java.io.ByteArrayInputStream;
-import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Random;
@@ -18,7 +16,6 @@ public class Handshake {
 	private long reservedExtensionByte = 0x0;
 	private String sha1Hash;
 	private byte[] peerId;
-	private byte[] extensionBytes;
 
 	public final static int HANDSHAKE_LENGTH = 19;
 

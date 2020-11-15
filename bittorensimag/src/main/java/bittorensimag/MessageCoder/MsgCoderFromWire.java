@@ -55,7 +55,6 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
             LOG.debug("Received Message : Handshake");
 
             // reading the protocol name
-            // TODO verify it is Bittorent
             byte[] protocol = this.readLength(in, 19);
             if (Handshake.protocolName.compareTo(new String(protocol)) != 0) {
                 LOG.error("This is not bittorent protocol");
@@ -67,12 +66,10 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
             long extensionBytesLong = Long.parseLong(Util.bytesToHex(extensionBytes));
 
             // reading sha1 hash
-            // TODO verify hash
             byte[] sha1HashBytes = this.readLength(in, 20);
             String sha1Hash = Util.bytesToHex(sha1HashBytes);
 
             // reading peer_id
-            // TODO verify peer_id ?
             byte[] peerId = this.readLength(in, 20);
 
             return new Handshake(sha1Hash, peerId, extensionBytesLong);
