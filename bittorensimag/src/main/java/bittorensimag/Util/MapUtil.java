@@ -56,7 +56,7 @@ public class MapUtil {
             String[] keyStrings) throws InvalidBEncodingException {
         for (String key : keyStrings) {
             destMap.put(key, MapUtil.getKeyString(sourceMap, key));
-            LOG.debug("String key " + key + " has been successfully added to " + destMap);
+            LOG.debug("String key " + key + " has been successfully added");
         }
     }
 
@@ -64,7 +64,7 @@ public class MapUtil {
             String[] keyStrings) throws InvalidBEncodingException {
         for (String key : keyStrings) {
             destMap.put(key, MapUtil.getKeyInt(sourceMap, key));
-            LOG.debug("Int key " + key + " has been successfully added to " + destMap);
+            LOG.debug("Int key " + key + " has been successfully added");
         }
     }
 
@@ -72,7 +72,7 @@ public class MapUtil {
             String[] keyStrings) throws InvalidBEncodingException {
         for (String key : keyStrings) {
             destMap.put(key, MapUtil.getKeyByte(sourceMap, key));
-            LOG.debug("Bytes key " + key + " has been successfully added to " + destMap);
+            LOG.debug("Bytes key " + key + " has been successfully added");
         }
     }
 
@@ -82,7 +82,7 @@ public class MapUtil {
         while (iterator.hasNext()) {
             Map.Entry<Integer, byte[]> mapEntry = (Map.Entry<Integer, byte[]>) iterator.next();
             buffer.put((byte[]) mapEntry.getValue());
-            LOG.debug("Key " + mapEntry.getKey() + " has been successfully added to " + dataMap);
+            LOG.debug("Key " + mapEntry.getKey() + " has been successfully added");
         }
         return buffer.array();
     }
