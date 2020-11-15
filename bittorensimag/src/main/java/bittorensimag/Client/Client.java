@@ -136,7 +136,7 @@ public class Client {
         if (msgType < 0 || msgType > 8) {
             return false;
         }
-        LOG.debug("Handling " + msgType + " message");
+        LOG.debug("Handling " + Msg.messagesNames.get(msgType) + " message");
         // cast to specific message and doing logic
         switch (msgType) {
             case Simple.CHOKE:
@@ -207,7 +207,6 @@ public class Client {
     }
 
     private void handleRequest(Request request, OutputStream out) throws IOException {
-        LOG.debug("Handling Request message");
         int pieceIndex = request.getIndex();
         int beginOffset = request.getBeginOffset();
         int pieceLength = request.getPieceLength();
@@ -220,7 +219,6 @@ public class Client {
 
     // TODO send new request if fail for a part
     private void handlePieceMsg(DataInputStream in, Piece piece, OutputStream out) throws IOException {
-        LOG.debug("Handling Piece message");
         int pieceIndex = piece.getPieceIndex();
         int beginOffset = piece.getBeginOffset();
         byte[] data = piece.getData();
