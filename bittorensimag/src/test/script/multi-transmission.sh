@@ -40,13 +40,13 @@ for i in $(seq 1 ${seeder_number});do
     echo "Starting seeder $i on port $port"
 
 	# Start daemon
-	transmission-daemon -p $port -w $fileFolder
+	transmission-daemon -et -GSR -M -O -T --no-utp -p $port -w $fileFolder -P $((51412+$i))
 	sleep 1
 	# Add torrent
-	transmission-remote $port -a $torrent --find $fileFolder
+	transmission-remote $port -AS -ASC -D -U -X -Y -a $torrent --find $fileFolder
 	sleep 1
 	# Verify local data
-	transmission-remote $port -t all -v
+	transmission-remote $port -t all -SR -v
 	sleep 1 
 	# Start torrent
 	transmission-remote $port -t all -s 

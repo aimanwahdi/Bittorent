@@ -7,10 +7,11 @@ COUNT=$(ps x | grep transmission-daemon | head -n -1 | wc -l)
 # On boucle sur les clients
 for line in $(seq 1 $COUNT);
 do
-    PORT=$(ps x | grep transmission-daemon | sed -n "$line"p |awk '{print $7}')
+    # Le sed récupère la ligne et le awk le numéro de port
+    PORT=$(ps x | grep transmission-daemon | sed -n "$line"p | awk '{ for(i=1;i<=NF;i++) { if ($i ~ "-p") { print $(i+1) } } }')
     echo "Transmission daemon trouvé avec le port $PORT"
     echo "Suppression des torrents..."
-    transmission-remote $port -t all -rad
+    transmission-remote $PORT -t all -rad
     sleep 1
 done
 
