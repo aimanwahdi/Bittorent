@@ -1,8 +1,6 @@
 package bittorensimag.Client;
 
-import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -27,13 +25,10 @@ public class Client {
     public final static int PORT = 6881;
 
     private final Torrent torrent;
-    private final Tracker tracker;
     private final MsgCoderToWire coderToWire;
     private final MsgCoderFromWire coderFromWire;
-    private DataOutputStream dataOut;
     private DataInputStream dataIn;
     private OutputStream out;
-    private InputStream in;
     private Socket socket;
     boolean isSeeding;
 
@@ -41,7 +36,6 @@ public class Client {
 
     public Client(Torrent torrent, Tracker tracker, MsgCoderToWire coderToWire, MsgCoderFromWire coderFromWire) {
         this.torrent = torrent;
-        this.tracker = tracker;
         this.coderToWire = coderToWire;
         this.coderFromWire = coderFromWire;
         // TODO change when adding multiple peers
@@ -49,7 +43,6 @@ public class Client {
         Map.Entry<String, ArrayList<Integer>> firstEntry = tracker.getPeersMap().entrySet().iterator().next();
         // Can have multiple peers on multiple ports for localhost so get first one
         this.createSocket(firstEntry.getKey(), firstEntry.getValue().get(0));
-        this.createOutputStream();
         this.createInputStream();
         this.isSeeding = false;
     }
@@ -83,13 +76,6 @@ public class Client {
 
     }
 
-    private void createOutputStream() {
-        LOG.debug("Creation of the OutputStream");
-        ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
-        this.dataOut = new DataOutputStream(byteStream);
-        LOG.debug("OutputStream created");
-    }
-
     private void createInputStream() {
         InputStream inputStream;
         try {
@@ -114,13 +100,13 @@ public class Client {
         }
     }
 
-    private boolean receivedMsg(DataInputStream in, OutputStream out, MsgCoderToWire coderToWire,
+    private boolean receivedMsg(DataInputStream dataIn, OutputStream out, MsgCoderToWire coderToWire,
             MsgCoderFromWire coderFromWire) throws IOException {
 
-        Object msgReceived = coderFromWire.fromWire(in);
+        Object msgReceived = coderFromWire.fromWire(dataIn);
 
         if (msgReceived instanceof Integer && (int) msgReceived == -1) {
-            this.closeConnection(in);
+            this.closeConnection(dataIn);
             return false;
         }
 
@@ -140,30 +126,30 @@ public class Client {
         // cast to specific message and doing logic
         switch (msgType) {
             case Simple.CHOKE:
-                Simple choke = (Simple) msgReceived;
-                this.closeConnection(in);
+                // Simple choke = (Simple) msgReceived;
+                this.closeConnection(dataIn);
                 break;
             case Simple.UNCHOKE:
-                Simple unChoke = (Simple) msgReceived;
+                // Simple unChoke = (Simple) msgReceived;
                 // send first request message
                 // TODO send next request correponding to dataMap our client already has
                 Request.sendMessageForIndex(0, Torrent.numberOfPartPerPiece, out);
                 break;
             case Simple.INTERESTED:
-                Simple interested = (Simple) msgReceived;
+                // Simple interested = (Simple) msgReceived;
                 Simple.sendMessage(Simple.UNCHOKE, out);
                 break;
             case Simple.NOTINTERESTED:
-                Simple notInterested = (Simple) msgReceived;
+                // Simple notInterested = (Simple) msgReceived;
                 Simple.sendMessage(Simple.CHOKE, out);
-                this.closeConnection(in);
+                this.closeConnection(dataIn);
                 break;
             case Have.HAVE_TYPE:
-                Have have = (Have) msgReceived;
+                // Have have = (Have) msgReceived;
                 // TODO stocker client dans map pour suivre quel client a quelle pièce
                 break;
             case Bitfield.BITFIELD_TYPE:
-                Bitfield bitfield = (Bitfield) msgReceived;
+                // Bitfield bitfield = (Bitfield) msgReceived;
                 if (!isSeeding) {
                     Simple.sendMessage(Simple.INTERESTED, out);
                 }
@@ -174,7 +160,7 @@ public class Client {
                 break;
             case Piece.PIECE_TYPE:
                 Piece piece = (Piece) msgReceived;
-                this.handlePieceMsg(in, piece, out);
+                this.handlePieceMsg(dataIn, piece, out);
                 break;
             // TODO if implementing endgame
             // case CANCEL.CANCEL_TYPE:
@@ -188,7 +174,7 @@ public class Client {
         return stillReading;
     }
 
-    private boolean handleHandshake(Handshake handshake, OutputStream out2) throws IOException {
+    private boolean handleHandshake(Handshake handshake, OutputStream out) throws IOException {
         LOG.debug("Handling Handshake message");
         if (handshake.getSha1Hash().compareTo(this.torrent.info_hash) != 0) {
             LOG.error("Sha1 hash received different from torrent file");
@@ -198,10 +184,20 @@ public class Client {
 
         // who send handshake first ?
         // Handshake.sendMessage(this.torrent.info_hash, out);
+
+        int bytesNeeded = (int) Math.ceil((double) Torrent.numberOfPieces / 8);
+        byte[] bitfieldData = new byte[bytesNeeded];
+
+        // TODO for resume implement according to dataMap => which pieces are missing ?
         if (isSeeding) {
-            Bitfield.sendMessage(new byte[] { (byte) 0xff, (byte) 0xf0 }, out);
+            Arrays.fill(bitfieldData, (byte) 0xff);
+            bitfieldData[bitfieldData.length - 1] = (byte) 0xf0;
+            Bitfield.sendMessage(bitfieldData, out);
         } else {
-            Bitfield.sendMessage(new byte[] { 0, 0 }, out);
+            if (Torrent.dataMap.isEmpty()) {
+                Arrays.fill(bitfieldData, (byte) 0x00);
+                Bitfield.sendMessage(bitfieldData, out);
+            }
         }
         return true;
     }
@@ -218,7 +214,7 @@ public class Client {
     }
 
     // TODO send new request if fail for a part
-    private void handlePieceMsg(DataInputStream in, Piece piece, OutputStream out) throws IOException {
+    private void handlePieceMsg(DataInputStream dataIn, Piece piece, OutputStream out) throws IOException {
         int pieceIndex = piece.getPieceIndex();
         int beginOffset = piece.getBeginOffset();
         byte[] data = piece.getData();
@@ -239,7 +235,7 @@ public class Client {
                 // last part of last piece received
                 Have.sendMessage(pieceIndex, out);
                 Simple.sendMessage(Simple.NOTINTERESTED, out);
-                this.closeConnection(in);
+                this.closeConnection(dataIn);
                 stillReading = false;
         }
 
@@ -257,8 +253,8 @@ public class Client {
         }
     }
 
-    private void closeConnection(DataInputStream in) throws IOException {
-        in.close();
+    private void closeConnection(DataInputStream dataIn) throws IOException {
+        dataIn.close();
         this.socket.close();
         LOG.info("Connection closed");
     }

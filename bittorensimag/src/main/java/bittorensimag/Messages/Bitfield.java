@@ -14,18 +14,11 @@ public class Bitfield extends Msg {
 	private byte[] bitfieldData = new byte[2];
 
 	public final static int HEADER_LENGTH = 1;
-	public final static int DATA_LENGTH = 2;
-	public final static int BITFIELD_LENGTH = HEADER_LENGTH + DATA_LENGTH;
 	public final static int BITFIELD_TYPE = 5;
 
 	// Constructor for standard 2 byte bitfield
 	public Bitfield(byte[] bitfieldDATA) {
-		super(BITFIELD_LENGTH, BITFIELD_TYPE);
-		this.bitfieldData = bitfieldDATA;
-	}
-
-	public Bitfield(int msgLength, byte[] bitfieldDATA) {
-		super(msgLength, BITFIELD_TYPE);
+		super(HEADER_LENGTH + bitfieldDATA.length, BITFIELD_TYPE);
 		this.bitfieldData = bitfieldDATA;
 	}
 
