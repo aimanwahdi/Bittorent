@@ -16,7 +16,6 @@ import bittorensimag.MessageCoder.MsgCoderFromWire;
 import bittorensimag.MessageCoder.MsgCoderToWire;
 import bittorensimag.Messages.*;
 import bittorensimag.Torrent.*;
-import bittorensimag.Util.Util;
 
 public class Client {
     private static final Logger LOG = Logger.getLogger(Client.class);
@@ -221,35 +220,35 @@ public class Client {
 
         LOG.debug("Piece with index " + pieceIndex + " with beginOffset " + beginOffset);
 
-        this.addToMap(pieceIndex, data);
+        Piece.addToMap(pieceIndex, data);
 
         if (pieceIndex < Torrent.numberOfPieces - 1) {
             // request only if last part of piece has been received
             if (beginOffset == Torrent.pieces_length - Piece.DATA_LENGTH) {
-                Have.sendMessage(pieceIndex, out);
-                Request.sendMessageForIndex(++pieceIndex, Torrent.numberOfPartPerPiece, out);
+                if (Piece.testPieceHash(pieceIndex, Torrent.dataMap.get(pieceIndex))) {
+                    Have.sendMessage(pieceIndex, out);
+                    Request.sendMessageForIndex(++pieceIndex, Torrent.numberOfPartPerPiece, out);
+                }
+                else {
+                    // request same piece again
+                    Request.sendMessageForIndex(pieceIndex, Torrent.numberOfPartPerPiece, out);
+                }
             }
         } else {
             // last piece
             if (beginOffset == Torrent.pieces_length - Piece.DATA_LENGTH) {
                 // last part of last piece received
+                if (Piece.testPieceHash(pieceIndex, Torrent.dataMap.get(pieceIndex))) {
                 Have.sendMessage(pieceIndex, out);
                 Simple.sendMessage(Simple.NOTINTERESTED, out);
                 this.closeConnection(dataIn);
                 stillReading = false;
-        }
-
-    }
-}
-
-    private void addToMap(int pieceIndex, byte[] data) {
-        LOG.debug("Adding piece " + pieceIndex + " to the map");
-        // TODO add beginOffset in case parts do not arrive in order
-        if (Torrent.dataMap.containsKey(pieceIndex)) {
-            LOG.debug("Piece already in map, concatenate to piece");
-            Torrent.dataMap.replace(pieceIndex, Util.concat(Torrent.dataMap.get(pieceIndex), data));
-        } else {
-            Torrent.dataMap.put(pieceIndex, data);
+                }
+                else {
+                    // request same piece again
+                    Request.sendMessageForIndex(pieceIndex, Torrent.numberOfPartPerPiece, out);
+                }
+            }
         }
     }
 

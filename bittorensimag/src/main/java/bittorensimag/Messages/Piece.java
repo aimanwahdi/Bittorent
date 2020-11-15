@@ -2,10 +2,14 @@ package bittorensimag.Messages;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Arrays;
 
 import org.apache.log4j.Logger;
 
 import bittorensimag.MessageCoder.*;
+import bittorensimag.Torrent.Torrent;
+import bittorensimag.Util.Hashage;
+import bittorensimag.Util.Util;
 
 public class Piece extends Msg {
 	private static final Logger LOG = Logger.getLogger(Piece.class);
@@ -19,14 +23,6 @@ public class Piece extends Msg {
 	public final static int DATA_LENGTH = 16384;
 	public final static int PIECE_LENGTH = HEADER_LENGTH + DATA_LENGTH;
 	public final static int PIECE_TYPE = 7;
-
-	//  Constructor with default value for length
-	public Piece(int pieceIndex, int beginOffset, byte[] data) {
-		super(PIECE_LENGTH, PIECE_TYPE);
-		this.pieceIndex = pieceIndex;
-		this.beginOffset = beginOffset;
-		this.data = data;
-	}
 
 	public Piece(int msgLength, int pieceIndex, int beginOffset, byte[] data) {
 		super(msgLength, PIECE_TYPE);
@@ -66,5 +62,33 @@ public class Piece extends Msg {
 		Piece piece = new Piece(msgLength, index, beginOffset, data);
 		coderToWire.frameMsg(coderToWire.toWire(piece), out);
 		LOG.debug("Message Piece sent index=" + index + " beginOffset=" + beginOffset);
+	}
+
+	// TODO Replace fileContent with buffer
+	public static boolean testPieceHash(int index, byte[] pieceData) {
+
+		// hash the piece
+		byte[] hashOfPieceFile = Hashage.sha1Hasher.hashToByteArray(pieceData);
+
+		// retrieve hash from torrent metadata
+		byte[] hashOfPieceTorrent = Torrent.piecesHashes.get(index);
+
+		if (Arrays.equals(hashOfPieceFile, hashOfPieceTorrent)) {
+			return true;
+		} else {
+			LOG.error("File is not identical to it's torrent");
+			return false;
+		}
+	}
+
+	public static void addToMap(int pieceIndex, byte[] data) {
+		LOG.debug("Adding piece " + pieceIndex + " to the map");
+		// TODO add beginOffset in case parts do not arrive in order
+		if (Torrent.dataMap.containsKey(pieceIndex)) {
+			LOG.debug("Piece already in map, concatenate to piece");
+			Torrent.dataMap.replace(pieceIndex, Util.concat(Torrent.dataMap.get(pieceIndex), data));
+		} else {
+			Torrent.dataMap.put(pieceIndex, data);
+		}
 	}
 }

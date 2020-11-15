@@ -11,6 +11,9 @@ public class Hashage {
 	private String algorithm; // l'algorithme utilisé pour le hashage peut être SHA-1, SHA-256...
 	MessageDigest md = null;
 
+	private final static String SHA_1 = "SHA-1";
+	public final static Hashage sha1Hasher = new Hashage(SHA_1);
+
 	public Hashage(String algorithm) {
 		super();
 		this.algorithm = algorithm;

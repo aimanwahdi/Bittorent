@@ -7,7 +7,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.Date;
@@ -49,7 +48,6 @@ public class Torrent {
     public static Map<Integer, byte[]> piecesHashes = new HashMap<Integer, byte[]>();
 
     public final static String INFO = "info";
-    public final static String SHA_1 = "SHA-1";
 
     public final static String ANNOUNCE = "announce";
     public final static String ANNOUNCE_LIST = "announce-list";
@@ -90,6 +88,7 @@ public class Torrent {
         this.hashInfo();
         this.metadata = fillMetadata();
         this.setFields();
+        this.fillPiecesHashes();
     }
 
     public boolean hasInfo() {
@@ -109,14 +108,7 @@ public class Torrent {
         } catch (IOException e) {
             LOG.fatal("Could not encode info dictionnary");
         }
-        MessageDigest md = null;
-        try {
-            md = MessageDigest.getInstance(SHA_1);
-        } catch (NoSuchAlgorithmException e) {
-            LOG.fatal("Algorithm " + SHA_1 + " does not exist");
-        }
-        md.update(baos.toByteArray());
-        byte[] digest = md.digest();
+        byte[] digest = Hashage.sha1Hasher.hashToByteArray(baos.toByteArray());
         String s = Util.bytesToHex(digest); // to test sha1
         String encodedHash = new String(digest, StandardCharsets.ISO_8859_1);
         this.info_hash = s;
@@ -182,6 +174,17 @@ public class Torrent {
 
     }
 
+    private void fillPiecesHashes() {
+        // Creating string of all pieces info of torrent file
+        byte[] piecesBytes = (byte[]) this.getMetadata().get(Torrent.PIECES);
+        int i;
+        for (i = 0; i < Torrent.numberOfPieces; i++) {
+            // Substring corresponding to piece hash
+            byte[] hashOfPieceTorrent = Arrays.copyOfRange(piecesBytes, i * 20, (i + 1) * 20);
+            Torrent.piecesHashes.put(i, hashOfPieceTorrent);
+        }
+    }
+
     public boolean compareContent(File sourceFile) {
         // Creating stream and buffer to read file
         byte[] fileContent = null;
@@ -191,37 +194,29 @@ public class Torrent {
             LOG.fatal("Could not readAllBytes from source file : " + sourceFile);
         }
 
-        // Creating string of all pieces info of torrent file
-        byte[] piecesBytes = (byte[]) this.getMetadata().get(Torrent.PIECES);
-
         int i;
+        byte[] pieceData;
         for (i = 0; i < Torrent.numberOfPieces - 1; i++) {
-            byte[] byteArray = Arrays.copyOfRange(fileContent, i * Torrent.pieces_length,
+            pieceData = Arrays.copyOfRange(fileContent, i * Torrent.pieces_length,
                     (i + 1) * Torrent.pieces_length);
-
-
-            // hash the piece
-            Hashage hasher = new Hashage(SHA_1);
-            byte[] hashOfPieceFile = hasher.hashToByteArray(byteArray);
-
-            // Substring corresponding to piece hash
-            byte[] hashOfPieceTorrent = Arrays.copyOfRange(piecesBytes, i * 20, (i + 1) * 20);
-
-            if (Arrays.equals(hashOfPieceFile, hashOfPieceTorrent)) {
+            if (Piece.testPieceHash(i, pieceData)) {
                 // add the piece in the map
-                LOG.debug("Adding piece " + i + " to dataMap and piecesHashes");
-                Torrent.dataMap.put(i, byteArray);
-                Torrent.piecesHashes.put(i, hashOfPieceFile);
+                LOG.debug("Adding piece " + i + " to dataMap");
+                Torrent.dataMap.put(i, pieceData);
             } else {
-                LOG.error("File is not identical to it's torrent");
                 return false;
             }
         }
         // put last piece in Map
-        byte[] byteArray = Arrays.copyOfRange(fileContent, i * Torrent.pieces_length,
+        pieceData = Arrays.copyOfRange(fileContent, i * Torrent.pieces_length,
                 (i * Torrent.pieces_length) + Torrent.lastPieceLength);
-        LOG.debug("Adding piece " + i + "(last) to dataMap");
-        Torrent.dataMap.put(i, byteArray);
+        if (Piece.testPieceHash(i, pieceData)) {
+            // add the piece in the map
+            LOG.debug("Adding piece " + i + "(last) to dataMap");
+            Torrent.dataMap.put(i, pieceData);
+        } else {
+            return false;
+        }
         return true;
     }
 }
