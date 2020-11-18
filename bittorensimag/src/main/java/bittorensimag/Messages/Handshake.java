@@ -2,6 +2,8 @@ package bittorensimag.Messages;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.nio.channels.SocketChannel;
 import java.util.Random;
 
 import org.apache.log4j.Logger;
@@ -70,10 +72,20 @@ public class Handshake {
 	dispatcher.toWire(this);
 	}
 
-	public static void sendMessage(String info_hash, OutputStream out) throws IOException {
+	public static void sendMessage(String info_hash, SocketChannel clntChan) {
 		MsgCoderToWire coderToWire = new MsgCoderToWire();
 		Handshake handshakeMsg = new Handshake(info_hash);
-		coderToWire.frameMsg(coderToWire.toWire(handshakeMsg), out);
 		LOG.debug("Sending Handshake message for info_hash : " + info_hash);
+		try {
+			ByteBuffer writeBuf = ByteBuffer.wrap(coderToWire.toWire(handshakeMsg));
+
+			if (writeBuf.hasRemaining()) {
+				clntChan.write(writeBuf);
+			}
+			
+			System.out.println("Message Handshake sent");
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 }

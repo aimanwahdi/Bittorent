@@ -5,12 +5,19 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
+import java.util.Iterator;
+import java.util.List;
 
 import bittorensimag.MessageCoder.MsgCoderFromWire;
 import bittorensimag.MessageCoder.MsgCoderToWire;
@@ -30,20 +37,40 @@ public class Client {
     private OutputStream out;
     private Socket socket;
     boolean isSeeding;
+    
+    private Selector selector;
+    private List<SocketChannel> otherClientsChannels ;
 
     private boolean stillReading = true;
 
-    public Client(Torrent torrent, Tracker tracker, MsgCoderToWire coderToWire, MsgCoderFromWire coderFromWire) {
+    public Client(Torrent torrent, Tracker tracker, MsgCoderToWire coderToWire, MsgCoderFromWire coderFromWire) throws IOException {
         this.torrent = torrent;
         this.coderToWire = coderToWire;
         this.coderFromWire = coderFromWire;
-        // TODO change when adding multiple peers
-        // for now getting first key
-        Map.Entry<String, ArrayList<Integer>> firstEntry = tracker.getPeersMap().entrySet().iterator().next();
-        // Can have multiple peers on multiple ports for localhost so get first one
-        this.createSocket(firstEntry.getKey(), firstEntry.getValue().get(0));
-        this.createInputStream();
         this.isSeeding = false;
+        this.otherClientsChannels = new ArrayList<SocketChannel>();
+        this.createSelector(); //create selector
+
+        Map.Entry<String, ArrayList<Integer>> firstEntry = tracker.getPeersMap().entrySet().iterator().next();
+        this.connectToAllClients(firstEntry);
+
+        
+//        while (true) {
+//        	if (selector.select(300) == 0) { 
+//        		//System.out.print(".");
+//        		continue;
+//        	}
+//        	Iterator<SelectionKey> keyIter = selector.selectedKeys().iterator();
+//        	
+//        	while (keyIter.hasNext()) {
+//        		SelectionKey key = keyIter.next();
+//        		if (key.isAcceptable()) {
+//        			System.out.println("Acceptable key");
+//        		}
+//        		keyIter.remove(); 
+//        	}
+//        }
+
     }
 
     // THIS IS FOR SEEDER NOT IMPLEMENTED YET
@@ -61,57 +88,121 @@ public class Client {
         }
     }
 
-    public void startCommunication() throws IOException {
-        LOG.debug("Starting communication with the peer");
-        Handshake.sendMessage(this.torrent.info_hash, this.out);
-        try {
-            while (this.receivedMsg(this.dataIn, this.out, this.coderToWire, this.coderFromWire)) {
-                ;
+
+    public void startCommunication() {
+    	LOG.debug("Starting communication with the peer");
+
+    	for(SocketChannel clntChan : this.otherClientsChannels) {
+            Handshake.sendMessage(this.torrent.info_hash, clntChan);
+    	}
+    	
+    	while (true) { // Run forever, processing available I/O operations
+    		// Wait for some channel to be ready (or timeout)
+    		
+    		try {
+        		if (selector.select(300) == 0) { // returns # of ready chans
+        			continue;
+        		}
+    		}catch (IOException ioe) {
+                LOG.error("Error handling client: " + ioe.getMessage());
+
             }
-        } catch (IOException ioe) {
-            LOG.error("Error handling client: " + ioe.getMessage());
 
-        }
+    		
+        	System.out.println("available I/O operations found");
+        	Iterator<SelectionKey> keyIter = this.selector.selectedKeys().iterator();
+
+        	System.out.println(this.selector.selectedKeys().size());
+        	
+        	while (keyIter.hasNext()) {
+        		SelectionKey key = keyIter.next();
+        		if (key.isReadable()) {
+        			System.out.println("Readable key");
+        		}
+        		if (key.isWritable()) {
+        			System.out.println("Writable key");
+                    try {
+                        while (this.receivedMsg(this.coderToWire, this.coderFromWire ,key)) {
+                            ;
+                        }
+                    } catch (IOException ioe) {
+                        LOG.error("Error handling client: " + ioe.getMessage());
+
+                    }
+        		}
+        		System.out.println("key " + key);
+        		keyIter.remove(); 
+        	}
+        	
+    	}
+    	
+
+
 
     }
 
-    private void createInputStream() {
-        InputStream inputStream;
+
+    
+    private void createSelector() throws IOException {
         try {
-            LOG.debug("Creation of the InputStream");
-            inputStream = this.socket.getInputStream();
-            this.dataIn = new DataInputStream(inputStream);
-            LOG.debug("InputStream created");
+        	this.selector = Selector.open();
         } catch (IOException e) {
-            LOG.fatal("Could not create InputStream");
+    		e.printStackTrace();  
         }
-
     }
-
+    
     private void createSocket(String destAddr, int destPort) {
-        try {
-            LOG.debug("Creration of the socket for " + destAddr + " and port " + destPort);
-            this.socket = new Socket(destAddr, destPort);
-            this.out = this.socket.getOutputStream();
-            LOG.debug("Socket created");
-        } catch (IOException e) {
-            LOG.fatal("Could not create Socket");
+		LOG.debug("Creration of the socket for " + destAddr + " and port " + destPort);
+
+		try {
+        	SocketChannel clntChan = SocketChannel.open();
+        	if (!clntChan.connect(new InetSocketAddress(destAddr, destPort))) {
+        		while (!clntChan.finishConnect()) {
+        			System.out.print("Waiting for connection to finish"); 
+        		}
+        	}
+        	clntChan.configureBlocking(false); // must be nonblocking to register
+        	
+        	System.out.println("socket created " + destAddr + " " + destPort );
+        	
+        	// Register selector with channel for both reading and writing. The returned key is ignored
+        	SelectionKey key = clntChan.register(this.selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE);
+        	LOG.debug("Socket created");
+        	
+        	System.out.println("keys size " + this.selector.keys().size());
+        	
+        	otherClientsChannels.add(clntChan);
+
+    	} catch (IOException e) {
+    		LOG.fatal("Could not create Socket");
+    		e.printStackTrace();
+    	}
+    }
+    
+    private void connectToAllClients(Map.Entry<String, ArrayList<Integer>> firstEntry) {
+        ArrayList<Integer> portNumbers = firstEntry.getValue();
+        for(int port : portNumbers ) {
+        	System.out.println("port : "+ port);
+        	this.createSocket(firstEntry.getKey(), port);
         }
     }
 
-    private boolean receivedMsg(DataInputStream dataIn, OutputStream out, MsgCoderToWire coderToWire,
-            MsgCoderFromWire coderFromWire) throws IOException {
+    private boolean receivedMsg( MsgCoderToWire coderToWire,
+            MsgCoderFromWire coderFromWire, SelectionKey key) throws IOException {
 
-        Object msgReceived = coderFromWire.fromWire(dataIn);
+    	ByteBuffer clntBuf  = ByteBuffer.allocate(200);
+    	key.attach(clntBuf);
+    	
+    	System.out.println("client buffer "+ clntBuf);
+    	
+		
+        Object msgReceived = coderFromWire.fromWire(key);
 
-        if (msgReceived instanceof Integer && (int) msgReceived == -1) {
-            this.closeConnection(dataIn);
-            return false;
-        }
-
+    	
         if (msgReceived instanceof Handshake) {
+        	System.out.println("received handshake from key "+ key);
             Handshake handshake = (Handshake) msgReceived;
-            return this.handleHandshake(handshake, out);
+            return this.handleHandshake(handshake);
         }
             
         // cast to message to get type
@@ -125,8 +216,9 @@ public class Client {
         // cast to specific message and doing logic
         switch (msgType) {
             case Simple.CHOKE:
-                // Simple choke = (Simple) msgReceived;
-                this.closeConnection(dataIn);
+                Simple choke = (Simple) msgReceived;
+                //TODO correct this 
+//                this.closeConnection(in);
                 break;
             case Simple.UNCHOKE:
                 // Simple unChoke = (Simple) msgReceived;
@@ -141,7 +233,8 @@ public class Client {
             case Simple.NOTINTERESTED:
                 // Simple notInterested = (Simple) msgReceived;
                 Simple.sendMessage(Simple.CHOKE, out);
-                this.closeConnection(dataIn);
+                //TODO correct this 
+//                this.closeConnection(in);
                 break;
             case Have.HAVE_TYPE:
                 // Have have = (Have) msgReceived;
@@ -160,6 +253,8 @@ public class Client {
             case Piece.PIECE_TYPE:
                 Piece piece = (Piece) msgReceived;
                 this.handlePieceMsg(dataIn, piece, out);
+                //TODO correct this 
+//                this.handlePieceMsg(in, piece, out);
                 break;
             // TODO if implementing endgame
             // case CANCEL.CANCEL_TYPE:
@@ -169,11 +264,12 @@ public class Client {
                 // never reached test before;
                 break;
         }
+    	
 
         return stillReading;
     }
 
-    private boolean handleHandshake(Handshake handshake, OutputStream out) throws IOException {
+    private boolean handleHandshake(Handshake handshake) throws IOException {
         LOG.debug("Handling Handshake message");
         if (handshake.getSha1Hash().compareTo(this.torrent.info_hash) != 0) {
             LOG.error("Sha1 hash received different from torrent file");
@@ -252,6 +348,7 @@ public class Client {
         }
     }
 
+    //TODO change this for nio sockets 
     private void closeConnection(DataInputStream dataIn) throws IOException {
         dataIn.close();
         this.socket.close();
