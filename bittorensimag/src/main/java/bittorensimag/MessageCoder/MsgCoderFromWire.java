@@ -16,21 +16,14 @@ import bittorensimag.Util.Util;
 public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
     private static final Logger LOG = Logger.getLogger(MsgCoderFromWire.class);
 
-    public byte[] readLength(ByteBuffer readBuf, int offset,  int length) {
+    public byte[] readLength(ByteBuffer readBuf, int length) {
         byte[] bytesArray = new byte[length];
-        readBuf.get(bytesArray,offset,length);
+        readBuf.get(bytesArray, 0 , length);
         return bytesArray;
     }
 
     public int readLengthInt(ByteBuffer readBuf, int length) {
         String lengthString = "";
-//        for (int i = 0; i < length; i++) {
-//            try {
-//                lengthString += Util.intToHexStringWith0(in.readUnsignedByte());
-//            } catch (IOException e) {
-//                LOG.error("Error while reading ints for length " + length);
-//            }
-//        }
         
         for (int i = 0; i < length; i++) {
                 lengthString += Util.intToHexStringWith0(readBuf.get());
@@ -53,10 +46,10 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
     	int bytesRcvd;
     	int totalBytesRcvd = 0;
     	
-    	while (totalBytesRcvd < 68) {
-    		if ((bytesRcvd = clntChan.read(readBuf)) == -1) {
-    			System.out.println("Connection closed prematurely");
-    		}
+    	while ((bytesRcvd = clntChan.read(readBuf)) > 0 || totalBytesRcvd < 3) {
+//    		if ((bytesRcvd = clntChan.read(readBuf)) == -1) {
+//    			System.out.println("Connection closed prematurely");
+//    		}
         	totalBytesRcvd += bytesRcvd;
     	}
     	System.out.println("received bytes : " + totalBytesRcvd);
@@ -77,7 +70,7 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
 
             System.out.println("Received Message : Handshake");
             // reading the protocol name
-            byte[] protocol = this.readLength(readBuf,0, 19);
+            byte[] protocol = this.readLength(readBuf, 19);
 
             System.out.println("protocol name : " + new String(protocol));
             if (Handshake.protocolName.compareTo(new String(protocol)) != 0) {
@@ -86,20 +79,20 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
             }
 
             // reading extension bytes
-            byte[] extensionBytes = this.readLength(readBuf,0, 8);
+            byte[] extensionBytes = this.readLength(readBuf, 8);
             long extensionBytesLong = Long.parseLong(Util.bytesToHex(extensionBytes));
             
             System.out.println("extensionBytesLong " + extensionBytesLong);
 
             // reading sha1 hash
-            byte[] sha1HashBytes = this.readLength(readBuf,0, 20);
+            byte[] sha1HashBytes = this.readLength(readBuf, 20);
             String sha1Hash = Util.bytesToHex(sha1HashBytes);
             
             System.out.println("sha1Hash " + sha1Hash);
 
 
             // reading peer_id
-            byte[] peerId = this.readLength(readBuf,0, 20);
+            byte[] peerId = this.readLength(readBuf, 20);
             
             System.out.println("peerId " + peerId);
 
@@ -108,59 +101,59 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
 
             return new Handshake(sha1Hash, peerId, extensionBytesLong);
         } 
-//            else {
-//            // read three last bytes of length
-//            int totalLength = this.readTotalLength(in, firstByte);
-//
-//            // read type
-//            int type = in.readUnsignedByte();
-//            LOG.debug("Received Message : " + Msg.messagesNames.get(type));
-//            switch (type) {
-//                case Simple.CHOKE:
-//                    return new Simple(Simple.CHOKE);
-//                case Simple.UNCHOKE:
-//                    return new Simple(Simple.UNCHOKE);
-//                case Simple.INTERESTED:
-//                    return new Simple(Simple.INTERESTED);
-//                case Simple.NOTINTERESTED:
-//                    return new Simple(Simple.NOTINTERESTED);
-//                case Have.HAVE_TYPE:
-//                    int index = this.readLengthInt(in, totalLength - 1);
-//                    return new Have(index);
-//                case Bitfield.BITFIELD_TYPE:
-//                    byte[] bitfieldData = this.readLength(in, totalLength - 1);
-//                    return new Bitfield(bitfieldData);
-//                case Request.REQUEST_TYPE:
-//                    int requestIndex = in.readInt();
-//                    int requestOffset = in.readInt();
-//                    int lengthPiece = this.readLengthInt(in, 4);
-//                    return new Request(requestIndex, requestOffset, lengthPiece);
-//                case Piece.PIECE_TYPE:
-//                    int pieceIndex = in.readInt();
-//                    int beginOffset = in.readInt();
-//                    byte[] data = readData(in, pieceIndex, totalLength);
-//                    return new Piece(totalLength, pieceIndex, beginOffset, data);
-//                // TODO if implementing endgame
-//                // case CANCEL.CANCEL_TYPE:
-//                // return new Cancel();
-//                default:
-//                    break;
-//            }
-//
-//        }
+            else {
+            // read three last bytes of length
+            int totalLength = this.readTotalLength(readBuf ,firstByte);
+            System.out.println("totalLength " + totalLength);
+
+            // read type
+            int type = readBuf.get();
+            System.out.println("type " + type);
+
+            
+            LOG.debug("Received Message : " + Msg.messagesNames.get(type));
+            switch (type) {
+                case Simple.CHOKE:
+                    return new Simple(Simple.CHOKE);
+                case Simple.UNCHOKE:
+                    return new Simple(Simple.UNCHOKE);
+                case Simple.INTERESTED:
+                    return new Simple(Simple.INTERESTED);
+                case Simple.NOTINTERESTED:
+                    return new Simple(Simple.NOTINTERESTED);
+                case Have.HAVE_TYPE:
+                    int index = this.readLengthInt(readBuf, totalLength - 1);
+                    return new Have(index);
+                case Bitfield.BITFIELD_TYPE:
+                    byte[] bitfieldData = this.readLength(readBuf, totalLength - 1);
+                    return new Bitfield(bitfieldData);
+                case Request.REQUEST_TYPE:
+                    int requestIndex = readBuf.getInt();
+                    int requestOffset = readBuf.getInt();
+                    int lengthPiece = this.readLengthInt(readBuf, 4);
+                    return new Request(requestIndex, requestOffset, lengthPiece);
+                case Piece.PIECE_TYPE:
+                    int pieceIndex = readBuf.getInt();
+                    int beginOffset = readBuf.getInt();
+                    byte[] data = readData(readBuf, totalLength);
+                    return new Piece(totalLength, pieceIndex, beginOffset, data);
+                // TODO if implementing endgame
+                // case CANCEL.CANCEL_TYPE:
+                // return new Cancel();
+                default:
+                    break;
+            }
+
+        }
         return null;
     }
 
-    private int readTotalLength(DataInputStream in, int firstByte) throws IOException {
-//        String firstByteString = Util.intToHexStringWith0(firstByte);
-//        String secondByteString = Util.intToHexStringWith0(in.readUnsignedByte());
-//        String thirdByteString = Util.intToHexStringWith0(in.readUnsignedByte());
-//        String fourthByteString = Util.intToHexStringWith0(in.readUnsignedByte());
+    private int readTotalLength(ByteBuffer readBuf, int firstByte) throws IOException {
         
         String firstByteString = Util.intToHexStringWith0(firstByte);
-        String secondByteString = Util.intToHexStringWith0(in.readUnsignedByte());
-        String thirdByteString = Util.intToHexStringWith0(in.readUnsignedByte());
-        String fourthByteString = Util.intToHexStringWith0(in.readUnsignedByte());
+        String secondByteString = Util.intToHexStringWith0(readBuf.get());
+        String thirdByteString = Util.intToHexStringWith0(readBuf.get());
+        String fourthByteString = Util.intToHexStringWith0(readBuf.get());
 
         return Integer.parseInt(firstByteString + secondByteString + thirdByteString + fourthByteString, 16);
     }
@@ -168,20 +161,20 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
     /*
      * read all the data of a piece and put it the map
      */
-    private byte[] readData(DataInputStream in, int pieceIndex, int lengthMessage) {
-        ByteArrayOutputStream messageBuffer = new ByteArrayOutputStream();
+    private byte[] readData(ByteBuffer readBuf, int lengthMessage) {
+//        ByteArrayOutputStream messageBuffer = new ByteArrayOutputStream();
 
         int pieceDataLength = lengthMessage - Piece.HEADER_LENGTH;
 
-        for (int i = 0; i < pieceDataLength; i++) {
-            try {
-                int nextByte = in.readUnsignedByte();
-                messageBuffer.write(nextByte);
+//        for (int i = 0; i < pieceDataLength; i++) {
+//                int nextByte = readBuf.get();
+//                messageBuffer.write(nextByte);
+//        }
+        byte[] bytesArray = new byte[pieceDataLength];
 
-            } catch (IOException e) {
-                LOG.error("Error while reading data inside piece message");
-            }
-        }
-        return messageBuffer.toByteArray();
+        readBuf.get(bytesArray, 0, pieceDataLength);
+        return bytesArray ;
+        
+//        return messageBuffer.toByteArray();
     }
 }

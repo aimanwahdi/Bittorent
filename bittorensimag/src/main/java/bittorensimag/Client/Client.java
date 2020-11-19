@@ -54,23 +54,6 @@ public class Client {
         Map.Entry<String, ArrayList<Integer>> firstEntry = tracker.getPeersMap().entrySet().iterator().next();
         this.connectToAllClients(firstEntry);
 
-        
-//        while (true) {
-//        	if (selector.select(300) == 0) { 
-//        		//System.out.print(".");
-//        		continue;
-//        	}
-//        	Iterator<SelectionKey> keyIter = selector.selectedKeys().iterator();
-//        	
-//        	while (keyIter.hasNext()) {
-//        		SelectionKey key = keyIter.next();
-//        		if (key.isAcceptable()) {
-//        			System.out.println("Acceptable key");
-//        		}
-//        		keyIter.remove(); 
-//        	}
-//        }
-
     }
 
     // THIS IS FOR SEEDER NOT IMPLEMENTED YET
@@ -103,7 +86,7 @@ public class Client {
         		if (selector.select(300) == 0) { // returns # of ready chans
         			continue;
         		}
-    		}catch (IOException ioe) {
+    		} catch (IOException ioe) {
                 LOG.error("Error handling client: " + ioe.getMessage());
 
             }
@@ -122,9 +105,8 @@ public class Client {
         		if (key.isWritable()) {
         			System.out.println("Writable key");
                     try {
-                        while (this.receivedMsg(this.coderToWire, this.coderFromWire ,key)) {
-                            ;
-                        }
+                        this.receivedMsg(this.coderToWire, this.coderFromWire ,key);
+                        
                     } catch (IOException ioe) {
                         LOG.error("Error handling client: " + ioe.getMessage());
 
@@ -132,17 +114,11 @@ public class Client {
         		}
         		System.out.println("key " + key);
         		keyIter.remove(); 
-        	}
-        	
+        	}	
     	}
-    	
-
-
-
     }
 
-
-    
+ 
     private void createSelector() throws IOException {
         try {
         	this.selector = Selector.open();
@@ -150,6 +126,7 @@ public class Client {
     		e.printStackTrace();  
         }
     }
+    
     
     private void createSocket(String destAddr, int destPort) {
 		LOG.debug("Creration of the socket for " + destAddr + " and port " + destPort);
@@ -179,6 +156,7 @@ public class Client {
     	}
     }
     
+    
     private void connectToAllClients(Map.Entry<String, ArrayList<Integer>> firstEntry) {
         ArrayList<Integer> portNumbers = firstEntry.getValue();
         for(int port : portNumbers ) {
@@ -192,7 +170,8 @@ public class Client {
 
     	ByteBuffer clntBuf  = ByteBuffer.allocate(200);
     	key.attach(clntBuf);
-    	
+    	SocketChannel clntChan = (SocketChannel) key.channel();
+
     	System.out.println("client buffer "+ clntBuf);
     	
 		
@@ -202,7 +181,7 @@ public class Client {
         if (msgReceived instanceof Handshake) {
         	System.out.println("received handshake from key "+ key);
             Handshake handshake = (Handshake) msgReceived;
-            return this.handleHandshake(handshake);
+            return this.handleHandshake(handshake, key);
         }
             
         // cast to message to get type
@@ -224,15 +203,15 @@ public class Client {
                 // Simple unChoke = (Simple) msgReceived;
                 // send first request message
                 // TODO send next request correponding to dataMap our client already has
-                Request.sendMessageForIndex(0, Torrent.numberOfPartPerPiece, out);
+                Request.sendMessageForIndex(0, Torrent.numberOfPartPerPiece, clntChan);
                 break;
             case Simple.INTERESTED:
                 // Simple interested = (Simple) msgReceived;
-                Simple.sendMessage(Simple.UNCHOKE, out);
+                Simple.sendMessage(Simple.UNCHOKE, clntChan);
                 break;
             case Simple.NOTINTERESTED:
                 // Simple notInterested = (Simple) msgReceived;
-                Simple.sendMessage(Simple.CHOKE, out);
+                Simple.sendMessage(Simple.CHOKE, clntChan);
                 //TODO correct this 
 //                this.closeConnection(in);
                 break;
@@ -243,16 +222,16 @@ public class Client {
             case Bitfield.BITFIELD_TYPE:
                 // Bitfield bitfield = (Bitfield) msgReceived;
                 if (!isSeeding) {
-                    Simple.sendMessage(Simple.INTERESTED, out);
+                    Simple.sendMessage(Simple.INTERESTED, clntChan);
                 }
                 break;
             case Request.REQUEST_TYPE:
                 Request request = (Request) msgReceived;
-                this.handleRequest(request, out);
+                this.handleRequest(request, clntChan);
                 break;
             case Piece.PIECE_TYPE:
                 Piece piece = (Piece) msgReceived;
-                this.handlePieceMsg(dataIn, piece, out);
+                this.handlePieceMsg(dataIn, piece, clntChan);
                 //TODO correct this 
 //                this.handlePieceMsg(in, piece, out);
                 break;
@@ -269,7 +248,7 @@ public class Client {
         return stillReading;
     }
 
-    private boolean handleHandshake(Handshake handshake) throws IOException {
+    private boolean handleHandshake(Handshake handshake, SelectionKey key) throws IOException {
         LOG.debug("Handling Handshake message");
         if (handshake.getSha1Hash().compareTo(this.torrent.info_hash) != 0) {
             LOG.error("Sha1 hash received different from torrent file");
@@ -287,17 +266,17 @@ public class Client {
         if (isSeeding) {
             Arrays.fill(bitfieldData, (byte) 0xff);
             bitfieldData[bitfieldData.length - 1] = (byte) 0xf0;
-            Bitfield.sendMessage(bitfieldData, out);
+            Bitfield.sendMessage(bitfieldData, key);
         } else {
             if (Torrent.dataMap.isEmpty()) {
                 Arrays.fill(bitfieldData, (byte) 0x00);
-                Bitfield.sendMessage(bitfieldData, out);
+                Bitfield.sendMessage(bitfieldData, key);
             }
         }
         return true;
     }
 
-    private void handleRequest(Request request, OutputStream out) throws IOException {
+    private void handleRequest(Request request, SocketChannel clntChan) throws IOException {
         int pieceIndex = request.getIndex();
         int beginOffset = request.getBeginOffset();
         int pieceLength = request.getPieceLength();
@@ -305,11 +284,11 @@ public class Client {
         byte[] partData = Arrays.copyOfRange(pieceData, beginOffset, beginOffset + pieceLength);
 
         LOG.debug("Sending pieces for");
-        Piece.sendMessage(pieceLength + Piece.HEADER_LENGTH, pieceIndex, beginOffset, partData, out);
+        Piece.sendMessage(pieceLength + Piece.HEADER_LENGTH, pieceIndex, beginOffset, partData, clntChan);
     }
 
     // TODO send new request if fail for a part
-    private void handlePieceMsg(DataInputStream dataIn, Piece piece, OutputStream out) throws IOException {
+    private void handlePieceMsg(DataInputStream dataIn, Piece piece, SocketChannel clntChan) throws IOException {
         int pieceIndex = piece.getPieceIndex();
         int beginOffset = piece.getBeginOffset();
         byte[] data = piece.getData();
@@ -323,11 +302,11 @@ public class Client {
             if (beginOffset == Torrent.pieces_length - Piece.DATA_LENGTH) {
                 if (Piece.testPieceHash(pieceIndex, Torrent.dataMap.get(pieceIndex))) {
                     Have.sendMessage(pieceIndex, out);
-                    Request.sendMessageForIndex(++pieceIndex, Torrent.numberOfPartPerPiece, out);
+                    Request.sendMessageForIndex(++pieceIndex, Torrent.numberOfPartPerPiece, clntChan);
                 }
                 else {
                     // request same piece again
-                    Request.sendMessageForIndex(pieceIndex, Torrent.numberOfPartPerPiece, out);
+                    Request.sendMessageForIndex(pieceIndex, Torrent.numberOfPartPerPiece, clntChan);
                 }
             }
         } else {
@@ -336,13 +315,13 @@ public class Client {
                 // last part of last piece received
                 if (Piece.testPieceHash(pieceIndex, Torrent.dataMap.get(pieceIndex))) {
                 Have.sendMessage(pieceIndex, out);
-                Simple.sendMessage(Simple.NOTINTERESTED, out);
+                Simple.sendMessage(Simple.NOTINTERESTED, clntChan);
                 this.closeConnection(dataIn);
                 stillReading = false;
                 }
                 else {
                     // request same piece again
-                    Request.sendMessageForIndex(pieceIndex, Torrent.numberOfPartPerPiece, out);
+                    Request.sendMessageForIndex(pieceIndex, Torrent.numberOfPartPerPiece, clntChan);
                 }
             }
         }

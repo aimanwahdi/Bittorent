@@ -2,6 +2,9 @@ package bittorensimag.Messages;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.SocketChannel;
 
 import org.apache.log4j.Logger;
 
@@ -30,10 +33,22 @@ public class Bitfield extends Msg {
 		this.bitfieldData = bitfieldDATA;
 	}
 
-	public static void sendMessage(byte[] dataBitfield, OutputStream out) throws IOException {
+	public static void sendMessage(byte[] dataBitfield, SelectionKey key) throws IOException {
 		MsgCoderToWire coderToWire = new MsgCoderToWire();
 		Bitfield msgBitfield = new Bitfield(dataBitfield);
-		coderToWire.frameMsg(coderToWire.toWire(msgBitfield), out);
+    	SocketChannel clntChan = (SocketChannel) key.channel();
+
+		try {
+			ByteBuffer writeBuf = ByteBuffer.wrap(coderToWire.toWire(msgBitfield));
+
+			if (writeBuf.hasRemaining()) {
+				clntChan.write(writeBuf);
+			}
+			
+			System.out.println("Message Bitfield sent");
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 		LOG.debug("Message Bitfield sent with data : " + Util.bytesToHex(dataBitfield));
 }
 

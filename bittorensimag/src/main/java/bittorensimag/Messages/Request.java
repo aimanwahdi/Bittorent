@@ -2,6 +2,8 @@ package bittorensimag.Messages;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.nio.channels.SocketChannel;
 
 import org.apache.log4j.Logger;
 
@@ -46,21 +48,31 @@ public class Request extends Msg {
 	}
 
 	// Private method to send one request message
-	private static void sendMessage(int index, int beginOffset, int pieceLength, OutputStream out) throws IOException {
+	private static void sendMessage(int index, int beginOffset, int pieceLength, SocketChannel clntChan) throws IOException {
 		MsgCoderToWire coderToWire = new MsgCoderToWire();
 		Request msgRequest = new Request(index, beginOffset, pieceLength);
-		coderToWire.frameMsg(coderToWire.toWire(msgRequest), out);
+		try {
+			ByteBuffer writeBuf = ByteBuffer.wrap(coderToWire.toWire(msgRequest));
+
+			if (writeBuf.hasRemaining()) {
+				clntChan.write(writeBuf);
+			}
+			
+			System.out.println("Message msgRequest sent");
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 		LOG.debug("Message Request sent for index=" + index + " beginOffset=" + beginOffset);
 	}
 
-	public static void sendMessageForIndex(int index, int numberOfParts, OutputStream out) throws IOException {
+	public static void sendMessageForIndex(int index, int numberOfParts, SocketChannel clntChan) throws IOException {
 		for (int j = 0; j < numberOfParts - 1; j++) {
-			Request.sendMessage(index, j * Piece.DATA_LENGTH, Piece.DATA_LENGTH, out);
+			Request.sendMessage(index, j * Piece.DATA_LENGTH, Piece.DATA_LENGTH, clntChan);
 		}
 		if (index == Torrent.numberOfPieces - 1) {
-			Request.sendMessage(index, (numberOfParts - 1) * Piece.DATA_LENGTH, Torrent.lastPartLength, out);
+			Request.sendMessage(index, (numberOfParts - 1) * Piece.DATA_LENGTH, Torrent.lastPartLength, clntChan);
 		} else {
-			Request.sendMessage(index, (numberOfParts - 1) * Piece.DATA_LENGTH, Piece.DATA_LENGTH, out);
+			Request.sendMessage(index, (numberOfParts - 1) * Piece.DATA_LENGTH, Piece.DATA_LENGTH, clntChan);
 		}
 	}
 }

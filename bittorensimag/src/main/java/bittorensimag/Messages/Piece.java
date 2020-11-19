@@ -2,6 +2,8 @@ package bittorensimag.Messages;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.nio.channels.SocketChannel;
 import java.util.Arrays;
 
 import org.apache.log4j.Logger;
@@ -56,11 +58,21 @@ public class Piece extends Msg {
 		this.data = data;
 	}
 
-	public static void sendMessage(int msgLength, int index, int beginOffset, byte[] data, OutputStream out)
+	public static void sendMessage(int msgLength, int index, int beginOffset, byte[] data, SocketChannel clntChan)
 			throws IOException {
 		MsgCoderToWire coderToWire = new MsgCoderToWire();
 		Piece piece = new Piece(msgLength, index, beginOffset, data);
-		coderToWire.frameMsg(coderToWire.toWire(piece), out);
+		try {
+			ByteBuffer writeBuf = ByteBuffer.wrap(coderToWire.toWire(piece));
+
+			if (writeBuf.hasRemaining()) {
+				clntChan.write(writeBuf);
+			}
+			
+			System.out.println("Message Piece sent");
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 		LOG.debug("Message Piece sent index=" + index + " beginOffset=" + beginOffset);
 	}
 
