@@ -2,6 +2,8 @@ package bittorensimag.Messages;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.log4j.Logger;
 
@@ -35,6 +37,26 @@ public class Bitfield extends Msg {
 		Bitfield msgBitfield = new Bitfield(dataBitfield);
 		coderToWire.frameMsg(coderToWire.toWire(msgBitfield), out);
 		LOG.debug("Message Bitfield sent with data : " + Util.bytesToHex(dataBitfield));
-}
+	}
+	
+	public static ArrayList<Integer> convertBitfieldToList (Bitfield msg, int numberOfPiece){
+		ArrayList<Integer> listePieceDispo = new ArrayList<Integer>();
+		byte[] bitfieldReceivedData = msg.getBitfieldDATA();
+    	int index = 0;
+    	outerloop:
+    	for(int i = 0; i < bitfieldReceivedData.length; i++) {
+    		for(int j=0; j<8; j++) {
+    			int valueOfBit = (bitfieldReceivedData[i] >> (7 - j)) & 1; //retrieve the value of bit from highest bit to lowest bit
+    			if (valueOfBit == 1){
+    				listePieceDispo.add(index);
+    			}
+    			index++;
+    			if(index == numberOfPiece) {
+    				break outerloop;
+    			}
+    		}
+    	}
+    	return listePieceDispo;
+	}
 
 }

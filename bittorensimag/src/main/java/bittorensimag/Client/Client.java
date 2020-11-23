@@ -30,6 +30,9 @@ public class Client {
     private OutputStream out;
     private Socket socket;
     boolean isSeeding;
+    private Bitfield bitfieldReceived;
+    private ArrayList<Integer> piecesDispo;
+    private int nextIndexOfPieceDispo;
 
     private boolean stillReading = true;
 
@@ -132,7 +135,24 @@ public class Client {
                 // Simple unChoke = (Simple) msgReceived;
                 // send first request message
                 // TODO send next request correponding to dataMap our client already has
-                Request.sendMessageForIndex(0, Torrent.numberOfPartPerPiece, out);
+            	
+            	//send request for the first piece that exist in our seeder
+            	/*byte[] bitfieldReceivedData = bitfieldReceived.getBitfieldDATA();
+            	int index = 0;
+            	outerloop:
+            	for(int i = 0; i < Torrent.numberOfPieces; i++) {
+            		for(int j=0; j<8; j++) {
+            			index++;
+            			int valueOfBit = (bitfieldReceivedData[i] >> (7 - j)) & 1; //retrieve the value of bit from highest bit to lowest bit
+            			if (valueOfBit == 1){
+            				Request.sendMessageForIndex(index, Torrent.numberOfPartPerPiece, out);
+            				break outerloop;
+            			}
+            		}
+            	}*/
+                //Request.sendMessageForIndex(0, Torrent.numberOfPartPerPiece, out);
+            	Request.sendMessageForIndex(piecesDispo.get(nextIndexOfPieceDispo), Torrent.numberOfPartPerPiece, out);
+            	LOG.info(piecesDispo.get(nextIndexOfPieceDispo));
                 break;
             case Simple.INTERESTED:
                 // Simple interested = (Simple) msgReceived;
@@ -148,7 +168,16 @@ public class Client {
                 // TODO stocker client dans map pour suivre quel client a quelle pièce
                 break;
             case Bitfield.BITFIELD_TYPE:
-                // Bitfield bitfield = (Bitfield) msgReceived;
+                bitfieldReceived = (Bitfield) msgReceived;
+            	/*int bytesNeeded = (int) Math.ceil((double) Torrent.numberOfPieces / 8);
+                byte[] bitfieldData = new byte[bytesNeeded];
+                Arrays.fill(bitfieldData, (byte) 0x0f);
+                bitfieldData[bitfieldData.length - 1] = (byte) 0xf0;
+                bitfieldReceived = new Bitfield(bitfieldData);*/
+                
+                piecesDispo = Bitfield.convertBitfieldToList(bitfieldReceived, Torrent.numberOfPieces);
+                nextIndexOfPieceDispo = 0;
+                LOG.info(piecesDispo);
                 if (!isSeeding) {
                     Simple.sendMessage(Simple.INTERESTED, out);
                 }
@@ -221,17 +250,19 @@ public class Client {
         LOG.debug("Piece with index " + pieceIndex + " with beginOffset " + beginOffset);
 
         Piece.addToMap(pieceIndex, data);
+        //nextIndexOfPieceDispo++;
 
         if (pieceIndex < Torrent.numberOfPieces - 1) {
             // request only if last part of piece has been received
             if (beginOffset == Torrent.pieces_length - Piece.DATA_LENGTH) {
                 if (Piece.testPieceHash(pieceIndex, Torrent.dataMap.get(pieceIndex))) {
                     Have.sendMessage(pieceIndex, out);
-                    Request.sendMessageForIndex(++pieceIndex, Torrent.numberOfPartPerPiece, out);
+                    Request.sendMessageForIndex(piecesDispo.get(++nextIndexOfPieceDispo), Torrent.numberOfPartPerPiece, out);
+                    LOG.info(piecesDispo.get(nextIndexOfPieceDispo));
                 }
                 else {
                     // request same piece again
-                    Request.sendMessageForIndex(pieceIndex, Torrent.numberOfPartPerPiece, out);
+                    Request.sendMessageForIndex(piecesDispo.get(nextIndexOfPieceDispo), Torrent.numberOfPartPerPiece, out);
                 }
             }
         } else {
@@ -246,7 +277,7 @@ public class Client {
                 }
                 else {
                     // request same piece again
-                    Request.sendMessageForIndex(pieceIndex, Torrent.numberOfPartPerPiece, out);
+                    Request.sendMessageForIndex(piecesDispo.get(nextIndexOfPieceDispo), Torrent.numberOfPartPerPiece, out);
                 }
             }
         }
