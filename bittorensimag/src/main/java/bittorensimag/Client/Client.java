@@ -74,12 +74,12 @@ public class Client {
 
     public void startCommunication() {
     	LOG.debug("Starting communication with the peer");
-
+    	//send handshakes to all clients 
     	for(SocketChannel clntChan : this.otherClientsChannels) {
             Handshake.sendMessage(this.torrent.info_hash, clntChan);
     	}
     	
-    	while (true) { // Run forever, processing available I/O operations
+    	while (stillReading ) { // Run while reading processing available I/O operations
     		// Wait for some channel to be ready (or timeout)
     		
     		try {
@@ -91,10 +91,10 @@ public class Client {
 
             }
 
+    		LOG.info("Available I/O operations found");
     		
-        	System.out.println("available I/O operations found");
+    		// Get iterator on set of keys with I/O to process
         	Iterator<SelectionKey> keyIter = this.selector.selectedKeys().iterator();
-
         	System.out.println(this.selector.selectedKeys().size());
         	
         	while (keyIter.hasNext()) {
@@ -102,6 +102,7 @@ public class Client {
         		if (key.isReadable()) {
         			System.out.println("Readable key");
         		}
+        		// Client socket channel is available for writing
         		if (key.isWritable()) {
         			System.out.println("Writable key");
                     try {
@@ -109,10 +110,11 @@ public class Client {
                         
                     } catch (IOException ioe) {
                         LOG.error("Error handling client: " + ioe.getMessage());
-
                     }
         		}
         		System.out.println("key " + key);
+        		
+        		// remove from set of selected keys
         		keyIter.remove(); 
         	}	
     	}
@@ -131,8 +133,10 @@ public class Client {
     private void createSocket(String destAddr, int destPort) {
 		LOG.debug("Creration of the socket for " + destAddr + " and port " + destPort);
 
+		// Create listening socket channel for each port and register selector
 		try {
         	SocketChannel clntChan = SocketChannel.open();
+        	//bind socket with port
         	if (!clntChan.connect(new InetSocketAddress(destAddr, destPort))) {
         		while (!clntChan.finishConnect()) {
         			System.out.print("Waiting for connection to finish"); 
@@ -167,8 +171,10 @@ public class Client {
 
     private boolean receivedMsg( MsgCoderToWire coderToWire,
             MsgCoderFromWire coderFromWire, SelectionKey key) throws IOException {
-
+    	
+    	//for now we just allocate a capacity of 200 for reading buffers 
     	ByteBuffer clntBuf  = ByteBuffer.allocate(200);
+    	//for each key we can attach one object, in this case a reading buffer
     	key.attach(clntBuf);
     	SocketChannel clntChan = (SocketChannel) key.channel();
 
@@ -197,13 +203,17 @@ public class Client {
             case Simple.CHOKE:
                 Simple choke = (Simple) msgReceived;
                 //TODO correct this 
-//                this.closeConnection(in);
+                this.closeConnection();
                 break;
             case Simple.UNCHOKE:
                 // Simple unChoke = (Simple) msgReceived;
                 // send first request message
                 // TODO send next request correponding to dataMap our client already has
-                Request.sendMessageForIndex(0, Torrent.numberOfPartPerPiece, clntChan);
+                //Request.sendMessageForIndex(0, Torrent.numberOfPartPerPiece, clntChan);
+            	
+            	//delete this if you want to carry on with the communication
+            	this.closeConnection();
+            	stillReading = false;
                 break;
             case Simple.INTERESTED:
                 // Simple interested = (Simple) msgReceived;
@@ -316,7 +326,7 @@ public class Client {
                 if (Piece.testPieceHash(pieceIndex, Torrent.dataMap.get(pieceIndex))) {
                 Have.sendMessage(pieceIndex, out);
                 Simple.sendMessage(Simple.NOTINTERESTED, clntChan);
-                this.closeConnection(dataIn);
+                this.closeConnection();
                 stillReading = false;
                 }
                 else {
@@ -328,9 +338,10 @@ public class Client {
     }
 
     //TODO change this for nio sockets 
-    private void closeConnection(DataInputStream dataIn) throws IOException {
-        dataIn.close();
-        this.socket.close();
+    private void closeConnection() throws IOException {
+    	for(SocketChannel clntChan : this.otherClientsChannels) {
+    		clntChan.close();
+    	}
         LOG.info("Connection closed");
     }
 
