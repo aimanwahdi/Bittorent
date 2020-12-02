@@ -22,8 +22,11 @@ public class PieceManager {
 		requestSent.set(pieceRequested, true);
 	}
 	
-	public int nextPieceToRequest(int pieceReceived, String currentPeer) {
+	public void pieceDownloaded(int pieceReceived) {
 		downloaded.set(pieceReceived, true);
+	}
+	
+	public int nextPieceToRequest(String currentPeer) {
 		int nextPiece = 0;
 		while ((nextPiece < numOfPiece) && (requestSent.get(nextPiece) == true || !pieceMap.get(nextPiece).contains(currentPeer)) ) {
 			nextPiece += 1;
@@ -33,8 +36,6 @@ public class PieceManager {
 		} else {
 			return nextPiece;
 		}
-		
-		
 	}
 	
 	
