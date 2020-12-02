@@ -28,7 +28,7 @@ public class PieceManager {
 	
 	public int nextPieceToRequest(String currentPeer) {
 		int nextPiece = 0;
-		while ((nextPiece < numOfPiece) && (requestSent.get(nextPiece) == true || !pieceMap.get(nextPiece).contains(currentPeer)) ) {
+		while ((nextPiece < numOfPiece) && (requestSent.get(nextPiece) == true || !pieceMap.get(nextPiece).contains(currentPeer) || downloaded.get(nextPiece) == true) ) {
 			nextPiece += 1;
 		}
 		if(nextPiece == numOfPiece) { //if all the request has been sent, return -1 to tell that it is finished
