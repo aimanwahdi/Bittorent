@@ -28,7 +28,12 @@ public class PieceManager {
 		while ((nextPiece < numOfPiece) && (requestSent.get(nextPiece) == true || !pieceMap.get(nextPiece).contains(currentPeer)) ) {
 			nextPiece += 1;
 		}
-		return nextPiece;
+		if(nextPiece == numOfPiece) { //if all the request has been sent, return -1 to tell that it is finished
+			return -1;
+		} else {
+			return nextPiece;
+		}
+		
 		
 	}
 	
