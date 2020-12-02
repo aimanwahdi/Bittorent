@@ -1,4 +1,4 @@
-#!/usr/bin/sh
+#!/bin/sh
 echo "Fermeture des programmes"
 
 # On récupère le nombre de clients transmissions actif (dernière ligne enlevée car c'est le grep)

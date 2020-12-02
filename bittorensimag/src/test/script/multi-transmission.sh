@@ -1,4 +1,4 @@
-#!/usr/bin/sh
+#!/bin/sh
 
 # Exemple de script de lancement de plusieurs clients transmissions
 
