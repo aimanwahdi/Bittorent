@@ -49,19 +49,32 @@ public class Client {
         this.isSeeding = false;
     }
 
-    // THIS IS FOR SEEDER NOT IMPLEMENTED YET
-    public void leecherOrSeeder() {
+    public void leecherOrSeeder(File destinationFolder) throws IOException {
         File sourceFile = new File(
                 this.torrent.torrentFile.getParent() + "/" + this.torrent.getMetadata().get(Torrent.NAME));
         LOG.debug("Verifying source file : " + sourceFile);
-        if (sourceFile.exists() && sourceFile.isFile() && this.torrent.compareContent(sourceFile)) {
-            this.isSeeding = true;
-            LOG.info("Source file found and correct !");
-            LOG.info("SEEDER MODE");
+        if (sourceFile.exists() && sourceFile.isFile()) {
+            if (this.torrent.fillBitfield(sourceFile)) {
+                this.isSeeding = true;
+                LOG.info("Source file found and correct !");
+                LOG.info("SEEDER MODE");
+            } else {
+                LOG.info("Source file found but incomplete");
+                LOG.info("LEECHER MODE");
+            }
         } else {
-            LOG.info("Source file not found or incorrect !");
+            LOG.info("Source file not found");
             LOG.info("LEECHER MODE");
+            this.createEmptyFile(sourceFile, destinationFolder);
+            LOG.debug("Output file created");
         }
+    }
+
+    private void createEmptyFile(File sourceFile, File destinationFolder) {
+        byte[] emptyArray = new byte[Torrent.totalSize];
+        Output out = new Output((String) this.torrent.getMetadata().get(Torrent.NAME),
+                destinationFolder.getAbsolutePath() + "/", emptyArray);
+        out.generateFile();
     }
 
     public void startCommunication() throws IOException {
@@ -93,7 +106,7 @@ public class Client {
 
     private void createSocket(String destAddr, int destPort) {
         try {
-            LOG.debug("Creration of the socket for " + destAddr + " and port " + destPort);
+            LOG.debug("Creation of the socket for " + destAddr + " and port " + destPort);
             this.socket = new Socket(destAddr, destPort);
             this.out = this.socket.getOutputStream();
             LOG.debug("Socket created");
@@ -213,20 +226,7 @@ public class Client {
         // who send handshake first ?
         // Handshake.sendMessage(this.torrent.info_hash, out);
 
-        int bytesNeeded = (int) Math.ceil((double) Torrent.numberOfPieces / 8);
-        byte[] bitfieldData = new byte[bytesNeeded];
-
-        // TODO for resume implement according to dataMap => which pieces are missing ?
-        if (isSeeding) {
-            Arrays.fill(bitfieldData, (byte) 0xff);
-            bitfieldData[bitfieldData.length - 1] = (byte) 0xf0;
-            Bitfield.sendMessage(bitfieldData, out);
-        } else {
-            if (Torrent.dataMap.isEmpty()) {
-                Arrays.fill(bitfieldData, (byte) 0x00);
-                Bitfield.sendMessage(bitfieldData, out);
-            }
-        }
+        Bitfield.sendMessage(out);
         return true;
     }
 

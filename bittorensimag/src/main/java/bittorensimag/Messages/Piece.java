@@ -76,7 +76,7 @@ public class Piece extends Msg {
 		if (Arrays.equals(hashOfPieceFile, hashOfPieceTorrent)) {
 			return true;
 		} else {
-			LOG.error("File is not identical to it's torrent");
+			LOG.error("Piece " + index + " is not identical to it's torrent hash");
 			return false;
 		}
 	}

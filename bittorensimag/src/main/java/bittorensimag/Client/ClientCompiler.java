@@ -57,7 +57,7 @@ public class ClientCompiler {
         LOG.info("Found another peer for torrent file : " + sourceTorrent.getName());
         
         Client client = new Client(torrent, tracker, new MsgCoderToWire(), new MsgCoderFromWire());
-        client.leecherOrSeeder();
+        client.leecherOrSeeder(destinationFolder);
         client.startCommunication();
         if (!client.isSeeding) {
             byte[] fileContent = MapUtil.convertHashMapToByteArray((int) this.torrent.getMetadata().get(Torrent.LENGTH),
