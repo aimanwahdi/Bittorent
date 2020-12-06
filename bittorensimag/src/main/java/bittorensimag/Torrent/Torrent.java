@@ -21,6 +21,7 @@ import be.adaxisoft.bencode.BDecoder;
 import be.adaxisoft.bencode.BEncodedValue;
 import be.adaxisoft.bencode.BEncoder;
 import be.adaxisoft.bencode.InvalidBEncodingException;
+import bittorensimag.Client.Output;
 import bittorensimag.Messages.Bitfield;
 import bittorensimag.Messages.Piece;
 import bittorensimag.Util.Hashage;
@@ -190,22 +191,21 @@ public class Torrent {
         }
     }
 
-    public boolean fillBitfield(File sourceFile) throws IOException {
+    public boolean fillBitfield(Output file) throws IOException {
         boolean isComplete = true;
-
-        // Creating channel and buffer to read file
-        FileInputStream inFile = new FileInputStream(sourceFile);
-        FileChannel inChannel = inFile.getChannel();
+        ;
 
         ByteBuffer buffer = ByteBuffer.allocate(Torrent.pieces_length);
         byte[] pieceData;
         BitSet bitSet = new BitSet(8);
         int numberOfBytes = 0;
 
+        FileChannel channel = file.getInChannel();
+
         for (; numberOfBytes < Torrent.numberOfPieces / 8; numberOfBytes++) {
             for (int b = 0; b < 8; b++) {
                 int pieceNumber = b + 8 * numberOfBytes;
-                if (inChannel.read(buffer) == -1) {
+                if (channel.read(buffer) == -1) {
                     LOG.debug("Error reading file in buffer");
                 }
                 pieceData = buffer.array();
@@ -219,7 +219,12 @@ public class Torrent {
                 buffer.clear();
             }
             // each 8 bits we create a byte
-            Bitfield.setByteInBitfield(numberOfBytes, Util.reverseBitsByte(bitSet.toByteArray()[0]));
+            if (bitSet.toByteArray().length == 0) {
+                // if no byte are set to true
+                Bitfield.setByteInBitfield(numberOfBytes, (byte) 0x0);
+            } else {
+                Bitfield.setByteInBitfield(numberOfBytes, Util.reverseBitsByte(bitSet.toByteArray()[0]));
+            }
             bitSet.clear();
         }
 
@@ -229,7 +234,7 @@ public class Torrent {
             if (pieceNumber == Torrent.numberOfPieces - 1) {
                 buffer = ByteBuffer.allocate(Torrent.lastPieceLength);
             }
-            if (inChannel.read(buffer) == -1) {
+            if (channel.read(buffer) == -1) {
                 LOG.debug("Error reading file in buffer");
             }
             pieceData = buffer.array();
@@ -243,10 +248,15 @@ public class Torrent {
             buffer.clear();
         }
         // create the last byte
-        Bitfield.setByteInBitfield(numberOfBytes, Util.reverseBitsByte(bitSet.toByteArray()[0]));
+        if (bitSet.toByteArray().length == 0) {
+            // if no byte are set to true
+            Bitfield.setByteInBitfield(numberOfBytes, (byte) 0x0);
+        } else {
+            Bitfield.setByteInBitfield(numberOfBytes, Util.reverseBitsByte(bitSet.toByteArray()[0]));
+        }
         bitSet.clear();
 
-        inFile.close();
+        file.closeInChannel();
         return isComplete;
     }
 }

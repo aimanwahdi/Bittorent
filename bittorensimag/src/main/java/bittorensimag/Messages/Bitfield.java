@@ -47,14 +47,14 @@ public class Bitfield extends Msg {
 		LOG.debug("Message Bitfield sent with data : " + Util.bytesToHex(ourBitfieldData));
 	}
 	
-	public static ArrayList<Integer> convertBitfieldToList (Bitfield msg, int numberOfPiece){
+	public static ArrayList<Integer> convertBitfieldToList(byte[] bitfieldData, int numberOfPiece) {
 		ArrayList<Integer> listePieceDispo = new ArrayList<Integer>();
-		byte[] bitfieldReceivedData = msg.getBitfieldDATA();
     	int index = 0;
     	outerloop:
-    	for(int i = 0; i < bitfieldReceivedData.length; i++) {
+		for (int i = 0; i < bitfieldData.length; i++) {
     		for(int j=0; j<8; j++) {
-    			int valueOfBit = (bitfieldReceivedData[i] >> (7 - j)) & 1; //retrieve the value of bit from highest bit to lowest bit
+				int valueOfBit = (bitfieldData[i] >> (7 - j)) & 1; // retrieve the value of bit from highest bit to
+																	// lowest bit
     			if (valueOfBit == 1){
     				listePieceDispo.add(index);
     			}

@@ -9,7 +9,6 @@ import org.apache.log4j.Logger;
 import bittorensimag.MessageCoder.*;
 import bittorensimag.Torrent.Torrent;
 import bittorensimag.Util.Hashage;
-import bittorensimag.Util.Util;
 
 public class Piece extends Msg {
 	private static final Logger LOG = Logger.getLogger(Piece.class);
@@ -64,7 +63,6 @@ public class Piece extends Msg {
 		LOG.debug("Message Piece sent index=" + index + " beginOffset=" + beginOffset);
 	}
 
-	// TODO Replace fileContent with buffer
 	public static boolean testPieceHash(int index, byte[] pieceData) {
 
 		// hash the piece
@@ -78,17 +76,6 @@ public class Piece extends Msg {
 		} else {
 			LOG.error("Piece " + index + " is not identical to it's torrent hash");
 			return false;
-		}
-	}
-
-	public static void addToMap(int pieceIndex, byte[] data) {
-		LOG.debug("Adding piece " + pieceIndex + " to the map");
-		// TODO add beginOffset in case parts do not arrive in order
-		if (Torrent.dataMap.containsKey(pieceIndex)) {
-			LOG.debug("Piece already in map, concatenate to piece");
-			Torrent.dataMap.replace(pieceIndex, Util.concat(Torrent.dataMap.get(pieceIndex), data));
-		} else {
-			Torrent.dataMap.put(pieceIndex, data);
 		}
 	}
 }

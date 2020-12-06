@@ -8,6 +8,7 @@ import java.io.OutputStream;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
@@ -16,6 +17,7 @@ import bittorensimag.MessageCoder.MsgCoderFromWire;
 import bittorensimag.MessageCoder.MsgCoderToWire;
 import bittorensimag.Messages.*;
 import bittorensimag.Torrent.*;
+import bittorensimag.Util.ListUtils;
 
 public class Client {
     private static final Logger LOG = Logger.getLogger(Client.class);
@@ -24,6 +26,7 @@ public class Client {
     public final static int PORT = 6881;
 
     private final Torrent torrent;
+    private final Tracker tracker;
     private final MsgCoderToWire coderToWire;
     private final MsgCoderFromWire coderFromWire;
     private DataInputStream dataIn;
@@ -32,12 +35,18 @@ public class Client {
     boolean isSeeding;
     private Bitfield bitfieldReceived;
     private ArrayList<Integer> piecesDispo;
-    private int nextIndexOfPieceDispo;
+    private ArrayList<Integer> piecesToRequest;
+    private ArrayList<Integer> piecesDispoToRequest;
+    private int nextIndexToRequest;
 
     private boolean stillReading = true;
 
-    public Client(Torrent torrent, Tracker tracker, MsgCoderToWire coderToWire, MsgCoderFromWire coderFromWire) {
+    private Output outputFile;
+
+    public Client(Torrent torrent, Tracker tracker, MsgCoderToWire coderToWire, MsgCoderFromWire coderFromWire,
+            File destinationFolder) throws IOException {
         this.torrent = torrent;
+        this.tracker = tracker;
         this.coderToWire = coderToWire;
         this.coderFromWire = coderFromWire;
         // TODO change when adding multiple peers
@@ -46,15 +55,18 @@ public class Client {
         // Can have multiple peers on multiple ports for localhost so get first one
         this.createSocket(firstEntry.getKey(), firstEntry.getValue().get(0));
         this.createInputStream();
-        this.isSeeding = false;
+        this.outputFile = new Output((String) this.torrent.getMetadata().get(Torrent.NAME),
+                destinationFolder.getAbsolutePath() + "/");
+        this.leecherOrSeeder(destinationFolder);
     }
 
-    public void leecherOrSeeder(File destinationFolder) throws IOException {
-        File sourceFile = new File(
-                this.torrent.torrentFile.getParent() + "/" + this.torrent.getMetadata().get(Torrent.NAME));
-        LOG.debug("Verifying source file : " + sourceFile);
-        if (sourceFile.exists() && sourceFile.isFile()) {
-            if (this.torrent.fillBitfield(sourceFile)) {
+    private void leecherOrSeeder(File destinationFolder) throws IOException {
+        this.isSeeding = false;
+        File f = this.outputFile.getFile();
+        LOG.debug("Verifying source file : " + f);
+        if (f.exists() && f.isFile()) {
+            this.outputFile.createFileObjects();
+            if (this.torrent.fillBitfield(this.outputFile)) {
                 this.isSeeding = true;
                 LOG.info("Source file found and correct !");
                 LOG.info("SEEDER MODE");
@@ -65,16 +77,20 @@ public class Client {
         } else {
             LOG.info("Source file not found");
             LOG.info("LEECHER MODE");
-            this.createEmptyFile(sourceFile, destinationFolder);
-            LOG.debug("Output file created");
+            this.outputFile.createEmptyFile(f, destinationFolder);
+            LOG.debug("Output file with empty data created");
         }
+        this.createListsForPieces();
     }
 
-    private void createEmptyFile(File sourceFile, File destinationFolder) {
-        byte[] emptyArray = new byte[Torrent.totalSize];
-        Output out = new Output((String) this.torrent.getMetadata().get(Torrent.NAME),
-                destinationFolder.getAbsolutePath() + "/", emptyArray);
-        out.generateFile();
+    private void createListsForPieces() {
+        ArrayList<Integer> ourPieces = Bitfield.convertBitfieldToList(Bitfield.ourBitfieldData, Torrent.numberOfPieces);
+        ArrayList<Integer> allPieces = new ArrayList<>(Torrent.numberOfPieces);
+        for (int i = 0; i < Torrent.numberOfPieces; i++) {
+            allPieces.add(i);
+        }
+        this.piecesToRequest = (ArrayList<Integer>) ListUtils.substraction(allPieces, ourPieces);
+        LOG.debug("Pieces needed to complete torrent :" + this.piecesToRequest);
     }
 
     public void startCommunication() throws IOException {
@@ -164,8 +180,8 @@ public class Client {
             		}
             	}*/
                 //Request.sendMessageForIndex(0, Torrent.numberOfPartPerPiece, out);
-            	Request.sendMessageForIndex(piecesDispo.get(nextIndexOfPieceDispo), Torrent.numberOfPartPerPiece, out);
-            	LOG.info(piecesDispo.get(nextIndexOfPieceDispo));
+                Request.sendMessageForIndex(this.piecesDispoToRequest.get(nextIndexToRequest),
+                        Torrent.numberOfPartPerPiece, out);
                 break;
             case Simple.INTERESTED:
                 // Simple interested = (Simple) msgReceived;
@@ -188,9 +204,13 @@ public class Client {
                 bitfieldData[bitfieldData.length - 1] = (byte) 0xf0;
                 bitfieldReceived = new Bitfield(bitfieldData);*/
                 
-                piecesDispo = Bitfield.convertBitfieldToList(bitfieldReceived, Torrent.numberOfPieces);
-                nextIndexOfPieceDispo = 0;
-                LOG.info(piecesDispo);
+                this.piecesDispo = Bitfield.convertBitfieldToList(bitfieldReceived.getBitfieldDATA(),
+                        Torrent.numberOfPieces);
+                this.piecesDispoToRequest = (ArrayList<Integer>) ListUtils.intersection(this.piecesDispo,
+                        this.piecesToRequest);
+                LOG.debug("Pieces needed that can be requested " + this.piecesDispoToRequest);
+                nextIndexToRequest = 0;
+                // TODO send Interested according to bitfield data
                 if (!isSeeding) {
                     Simple.sendMessage(Simple.INTERESTED, out);
                 }
@@ -234,7 +254,7 @@ public class Client {
         int pieceIndex = request.getIndex();
         int beginOffset = request.getBeginOffset();
         int pieceLength = request.getPieceLength();
-        byte[] pieceData = Torrent.dataMap.get(pieceIndex);
+        byte[] pieceData = this.outputFile.getPieceData(pieceIndex);
         byte[] partData = Arrays.copyOfRange(pieceData, beginOffset, beginOffset + pieceLength);
 
         LOG.debug("Sending pieces for");
@@ -249,35 +269,40 @@ public class Client {
 
         LOG.debug("Piece with index " + pieceIndex + " with beginOffset " + beginOffset);
 
-        Piece.addToMap(pieceIndex, data);
-        //nextIndexOfPieceDispo++;
+        this.outputFile.writeToFile(pieceIndex * Torrent.pieces_length + beginOffset, data);
+        // nextIndexToRequest++;
 
         if (pieceIndex < Torrent.numberOfPieces - 1) {
             // request only if last part of piece has been received
             if (beginOffset == Torrent.pieces_length - Piece.DATA_LENGTH) {
-                if (Piece.testPieceHash(pieceIndex, Torrent.dataMap.get(pieceIndex))) {
+                if (Piece.testPieceHash(pieceIndex, this.outputFile.getPieceData(pieceIndex))) {
                     Have.sendMessage(pieceIndex, out);
-                    Request.sendMessageForIndex(piecesDispo.get(++nextIndexOfPieceDispo), Torrent.numberOfPartPerPiece, out);
-                    LOG.info(piecesDispo.get(nextIndexOfPieceDispo));
+                    Request.sendMessageForIndex(this.piecesDispoToRequest.get(++nextIndexToRequest),
+                            Torrent.numberOfPartPerPiece, out);
+                    LOG.info(this.piecesDispoToRequest.get(nextIndexToRequest));
                 }
                 else {
                     // request same piece again
-                    Request.sendMessageForIndex(piecesDispo.get(nextIndexOfPieceDispo), Torrent.numberOfPartPerPiece, out);
+                    Request.sendMessageForIndex(this.piecesDispoToRequest.get(nextIndexToRequest),
+                            Torrent.numberOfPartPerPiece, out);
                 }
             }
         } else {
             // last piece
             if (beginOffset == Torrent.pieces_length - Piece.DATA_LENGTH) {
                 // last part of last piece received
-                if (Piece.testPieceHash(pieceIndex, Torrent.dataMap.get(pieceIndex))) {
+                if (Piece.testPieceHash(pieceIndex, this.outputFile.getPieceData(pieceIndex))) {
                 Have.sendMessage(pieceIndex, out);
+                this.tracker.generateUrl(Tracker.EVENT_COMPLETED);
+                this.tracker.getRequest(Tracker.EVENT_COMPLETED);
                 Simple.sendMessage(Simple.NOTINTERESTED, out);
                 this.closeConnection(dataIn);
                 stillReading = false;
                 }
                 else {
                     // request same piece again
-                    Request.sendMessageForIndex(piecesDispo.get(nextIndexOfPieceDispo), Torrent.numberOfPartPerPiece, out);
+                    Request.sendMessageForIndex(this.piecesDispoToRequest.get(nextIndexToRequest),
+                            Torrent.numberOfPartPerPiece, out);
                 }
             }
         }

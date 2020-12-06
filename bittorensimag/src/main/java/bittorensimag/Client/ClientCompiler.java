@@ -10,7 +10,6 @@ import org.apache.log4j.Logger;
 import bittorensimag.MessageCoder.MsgCoderFromWire;
 import bittorensimag.MessageCoder.MsgCoderToWire;
 import bittorensimag.Torrent.*;
-import bittorensimag.Util.MapUtil;
 
 /**
  * Instance of the bittorent compiler
@@ -42,6 +41,8 @@ public class ClientCompiler {
         LOG.debug("Successfully generated GET Request");
         tracker.getRequest(Tracker.EVENT_STARTED);
 
+        Client client = new Client(torrent, tracker, new MsgCoderToWire(), new MsgCoderFromWire(), destinationFolder);
+
         // Try each 5 sec to find other peers
         synchronized (this) {
             while (!tracker.foundAnotherPeer()) {
@@ -55,20 +56,8 @@ public class ClientCompiler {
             }
         }
         LOG.info("Found another peer for torrent file : " + sourceTorrent.getName());
-        
-        Client client = new Client(torrent, tracker, new MsgCoderToWire(), new MsgCoderFromWire());
-        client.leecherOrSeeder(destinationFolder);
-        client.startCommunication();
-        if (!client.isSeeding) {
-            byte[] fileContent = MapUtil.convertHashMapToByteArray((int) this.torrent.getMetadata().get(Torrent.LENGTH),
-                Torrent.dataMap);
-            Output out = new Output((String) this.torrent.getMetadata().get(Torrent.NAME),
-                this.destinationFolder.getAbsolutePath() + "/", fileContent);
-            out.generateFile();
-            tracker.generateUrl(Tracker.EVENT_COMPLETED);
-            tracker.getRequest(Tracker.EVENT_COMPLETED);
-        }
 
+        client.startCommunication();
         return true;
     }
 }
