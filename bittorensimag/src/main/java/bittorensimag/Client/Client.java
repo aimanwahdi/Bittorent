@@ -5,19 +5,27 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
+import java.util.Iterator;
+import java.util.List;
 
 import bittorensimag.MessageCoder.MsgCoderFromWire;
 import bittorensimag.MessageCoder.MsgCoderToWire;
 import bittorensimag.Messages.*;
 import bittorensimag.Torrent.*;
 import bittorensimag.Util.ListUtils;
+import bittorensimag.Util.PieceManager;
 
 public class Client {
     private static final Logger LOG = Logger.getLogger(Client.class);
@@ -28,36 +36,39 @@ public class Client {
     private final Torrent torrent;
     private final Tracker tracker;
     private final MsgCoderToWire coderToWire;
-    private final MsgCoderFromWire coderFromWire;
-    private DataInputStream dataIn;
-    private OutputStream out;
-    private Socket socket;
+    private final MsgCoderFromWire coderFromWire;;
     boolean isSeeding;
+    private Selector selector;
+    private List<SocketChannel> otherClientsChannels;
+
     private Bitfield bitfieldReceived;
     private ArrayList<Integer> piecesDispo;
     private ArrayList<Integer> piecesToRequest;
-    private ArrayList<Integer> piecesDispoToRequest;
-    private int nextIndexToRequest;
 
     private boolean stillReading = true;
 
     private Output outputFile;
 
+    private PieceManager pieceManager;
+
     public Client(Torrent torrent, Tracker tracker, MsgCoderToWire coderToWire, MsgCoderFromWire coderFromWire,
             File destinationFolder) throws IOException {
+
         this.torrent = torrent;
         this.tracker = tracker;
         this.coderToWire = coderToWire;
         this.coderFromWire = coderFromWire;
-        // TODO change when adding multiple peers
-        // for now getting first key
-        Map.Entry<String, ArrayList<Integer>> firstEntry = tracker.getPeersMap().entrySet().iterator().next();
-        // Can have multiple peers on multiple ports for localhost so get first one
-        this.createSocket(firstEntry.getKey(), firstEntry.getValue().get(0));
-        this.createInputStream();
+
         this.outputFile = new Output((String) this.torrent.getMetadata().get(Torrent.NAME),
                 destinationFolder.getAbsolutePath() + "/");
         this.leecherOrSeeder(destinationFolder);
+
+        this.pieceManager = new PieceManager(Torrent.numberOfPieces);
+        this.otherClientsChannels = new ArrayList<SocketChannel>();
+        this.createSelector(); // create selector
+
+        Map.Entry<String, ArrayList<Integer>> firstEntry = this.tracker.getPeersMap().entrySet().iterator().next();
+        this.connectToAllClients(firstEntry);
     }
 
     private void leecherOrSeeder(File destinationFolder) throws IOException {
@@ -80,72 +91,132 @@ public class Client {
             this.outputFile.createEmptyFile(f, destinationFolder);
             LOG.debug("Output file with empty data created");
         }
-        this.createListsForPieces();
     }
 
-    private void createListsForPieces() {
-        ArrayList<Integer> ourPieces = Bitfield.convertBitfieldToList(Bitfield.ourBitfieldData, Torrent.numberOfPieces);
-        ArrayList<Integer> allPieces = new ArrayList<>(Torrent.numberOfPieces);
-        for (int i = 0; i < Torrent.numberOfPieces; i++) {
-            allPieces.add(i);
-        }
-        this.piecesToRequest = (ArrayList<Integer>) ListUtils.substraction(allPieces, ourPieces);
-        LOG.debug("Pieces needed to complete torrent :" + this.piecesToRequest);
-    }
-
-    public void startCommunication() throws IOException {
+    public void startCommunication() {
         LOG.debug("Starting communication with the peer");
-        Handshake.sendMessage(this.torrent.info_hash, this.out);
-        try {
-            while (this.receivedMsg(this.dataIn, this.out, this.coderToWire, this.coderFromWire)) {
-                ;
-            }
-        } catch (IOException ioe) {
-            LOG.error("Error handling client: " + ioe.getMessage());
-
+        // send handshakes to all clients
+        for (SocketChannel clntChan : this.otherClientsChannels) {
+            Handshake.sendMessage(this.torrent.info_hash, clntChan);
         }
 
+        while (stillReading) { // Run while reading processing available I/O operations
+            // Wait for some channel to be ready (or timeout)
+
+            try {
+                if (selector.select(300) == 0) { // returns # of ready chans
+                    continue;
+                }
+            } catch (IOException ioe) {
+                LOG.error("Error handling client: " + ioe.getMessage());
+
+            }
+
+            LOG.info("Available I/O operations found");
+
+            // Get iterator on set of keys with I/O to process
+            Iterator<SelectionKey> keyIter = this.selector.selectedKeys().iterator();
+            LOG.debug("Number of keys available " + this.selector.selectedKeys().size());
+
+            while (keyIter.hasNext()) {
+                SelectionKey key = keyIter.next();
+                if (key.isReadable()) {
+                    LOG.debug("Readable key");
+                }
+                // Client socket channel is available for writing
+                if (key.isWritable()) {
+                    LOG.debug("Writable key");
+                    try {
+                        if (this.pieceManager.getDownloaded().contains(false)) {
+                            this.receivedMsg(this.coderToWire, this.coderFromWire, key);
+
+                        } else {
+                            // end communication with all clients
+                            for (SocketChannel clntChan : this.otherClientsChannels) {
+                                Simple.sendMessage(Simple.NOTINTERESTED, clntChan);
+                            }
+
+                            this.closeConnection();
+                            stillReading = false;
+                            break;
+                        }
+
+                    } catch (IOException ioe) {
+                        LOG.error("Error handling client: " + ioe.getMessage());
+                        ioe.printStackTrace();
+                    }
+                }
+                LOG.debug("Key " + key + " have been treated");
+
+                // remove from set of selected keys
+                keyIter.remove();
+            }
+        }
     }
 
-    private void createInputStream() {
-        InputStream inputStream;
+    private void createSelector() throws IOException {
         try {
-            LOG.debug("Creation of the InputStream");
-            inputStream = this.socket.getInputStream();
-            this.dataIn = new DataInputStream(inputStream);
-            LOG.debug("InputStream created");
+            this.selector = Selector.open();
         } catch (IOException e) {
-            LOG.fatal("Could not create InputStream");
+            LOG.error("Error creating selector: " + e.getMessage());
+            e.printStackTrace();
         }
-
     }
 
     private void createSocket(String destAddr, int destPort) {
+        LOG.debug("Creration of the socket for " + destAddr + " and port " + destPort);
+
+        // Create listening socket channel for each port and register selector
         try {
-            LOG.debug("Creation of the socket for " + destAddr + " and port " + destPort);
-            this.socket = new Socket(destAddr, destPort);
-            this.out = this.socket.getOutputStream();
-            LOG.debug("Socket created");
+            SocketChannel clntChan = SocketChannel.open();
+            // bind socket with port
+            if (!clntChan.connect(new InetSocketAddress(destAddr, destPort))) {
+                while (!clntChan.finishConnect()) {
+                    LOG.debug("Waiting for connection to finish");
+                }
+            }
+            clntChan.configureBlocking(false); // must be nonblocking to register
+
+            LOG.debug("socket created " + destAddr + " " + destPort);
+
+            // Register selector with channel for both reading and writing. The returned key
+            // is ignored
+            SelectionKey key = clntChan.register(this.selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE);
+
+            otherClientsChannels.add(clntChan);
+
         } catch (IOException e) {
             LOG.fatal("Could not create Socket");
+            e.printStackTrace();
         }
     }
 
-    private boolean receivedMsg(DataInputStream dataIn, OutputStream out, MsgCoderToWire coderToWire,
-            MsgCoderFromWire coderFromWire) throws IOException {
+    private void connectToAllClients(Map.Entry<String, ArrayList<Integer>> firstEntry) {
+        ArrayList<Integer> portNumbers = firstEntry.getValue();
+        for (int port : portNumbers) {
+            LOG.debug("port : " + port);
+            this.createSocket(firstEntry.getKey(), port);
+        }
+    }
 
-        Object msgReceived = coderFromWire.fromWire(dataIn);
+    private boolean receivedMsg(MsgCoderToWire coderToWire, MsgCoderFromWire coderFromWire, SelectionKey key)
+            throws IOException {
 
-        if (msgReceived instanceof Integer && (int) msgReceived == -1) {
-            this.closeConnection(dataIn);
+        SocketChannel clntChan = (SocketChannel) key.channel();
+
+        Object msgReceived = coderFromWire.fromWire(key);
+
+        if (msgReceived == null) {
+            LOG.error("Message received is null");
             return false;
         }
 
         if (msgReceived instanceof Handshake) {
+            LOG.debug("received handshake from key " + key);
             Handshake handshake = (Handshake) msgReceived;
-            return this.handleHandshake(handshake, out);
+            return this.handleHandshake(handshake, key);
         }
-            
+
         // cast to message to get type
         Msg msg = (Msg) msgReceived;
         int msgType = msg.getMsgType();
@@ -153,79 +224,80 @@ public class Client {
         if (msgType < 0 || msgType > 8) {
             return false;
         }
+
         LOG.debug("Handling " + Msg.messagesNames.get(msgType) + " message");
         // cast to specific message and doing logic
         switch (msgType) {
             case Simple.CHOKE:
-                // Simple choke = (Simple) msgReceived;
-                this.closeConnection(dataIn);
+                Simple choke = (Simple) msgReceived;
                 break;
             case Simple.UNCHOKE:
-                // Simple unChoke = (Simple) msgReceived;
-                // send first request message
-                // TODO send next request correponding to dataMap our client already has
-            	
-            	//send request for the first piece that exist in our seeder
-            	/*byte[] bitfieldReceivedData = bitfieldReceived.getBitfieldDATA();
-            	int index = 0;
-            	outerloop:
-            	for(int i = 0; i < Torrent.numberOfPieces; i++) {
-            		for(int j=0; j<8; j++) {
-            			index++;
-            			int valueOfBit = (bitfieldReceivedData[i] >> (7 - j)) & 1; //retrieve the value of bit from highest bit to lowest bit
-            			if (valueOfBit == 1){
-            				Request.sendMessageForIndex(index, Torrent.numberOfPartPerPiece, out);
-            				break outerloop;
-            			}
-            		}
-            	}*/
-                //Request.sendMessageForIndex(0, Torrent.numberOfPartPerPiece, out);
-                Request.sendMessageForIndex(this.piecesDispoToRequest.get(nextIndexToRequest),
-                        Torrent.numberOfPartPerPiece, out);
+                // get the next requested piece and send the request message for it
+                int nextPiece = this.pieceManager.nextPieceToRequest(clntChan.socket());
+                LOG.debug("Next piece to be requested " + nextPiece);
+                Request.sendMessageForIndex(nextPiece, Torrent.numberOfPartPerPiece, clntChan);
+                LOG.debug("Send request message to " + clntChan + " for piece " + nextPiece);
+                // set this piece as requested
+                this.pieceManager.requestSent(nextPiece);
                 break;
             case Simple.INTERESTED:
-                // Simple interested = (Simple) msgReceived;
-                Simple.sendMessage(Simple.UNCHOKE, out);
+                Simple interested = (Simple) msgReceived;
+                Simple.sendMessage(Simple.UNCHOKE, clntChan);
+                LOG.debug("Send unchoke message to " + clntChan);
                 break;
             case Simple.NOTINTERESTED:
-                // Simple notInterested = (Simple) msgReceived;
-                Simple.sendMessage(Simple.CHOKE, out);
-                this.closeConnection(dataIn);
+                Simple notInterested = (Simple) msgReceived;
+                Simple.sendMessage(Simple.CHOKE, clntChan);
+                LOG.debug("Send choke message to " + clntChan);
                 break;
             case Have.HAVE_TYPE:
-                // Have have = (Have) msgReceived;
+                Have have = (Have) msgReceived;
+                LOG.debug("Have received for index " + have.getIndex() + " from client " + clntChan);
                 // TODO stocker client dans map pour suivre quel client a quelle pièce
                 break;
             case Bitfield.BITFIELD_TYPE:
                 bitfieldReceived = (Bitfield) msgReceived;
-            	/*int bytesNeeded = (int) Math.ceil((double) Torrent.numberOfPieces / 8);
-                byte[] bitfieldData = new byte[bytesNeeded];
-                Arrays.fill(bitfieldData, (byte) 0x0f);
-                bitfieldData[bitfieldData.length - 1] = (byte) 0xf0;
-                bitfieldReceived = new Bitfield(bitfieldData);*/
-                
-                this.piecesDispo = Bitfield.convertBitfieldToList(bitfieldReceived.getBitfieldDATA(),
+
+                // create the list of available pieces for this client based on its bietfield
+                piecesDispo = Bitfield.convertBitfieldToList(bitfieldReceived.getBitfieldDATA(),
                         Torrent.numberOfPieces);
-                this.piecesDispoToRequest = (ArrayList<Integer>) ListUtils.intersection(this.piecesDispo,
-                        this.piecesToRequest);
-                LOG.debug("Pieces needed that can be requested " + this.piecesDispoToRequest);
-                nextIndexToRequest = 0;
-                // TODO send Interested according to bitfield data
+
+                // add the client represented by its socket and all its pieces to PieceMap
+                for (int pieceIndex : piecesDispo) {
+                    if (!this.pieceManager.getPieceMap().containsKey(pieceIndex)) {
+                        ArrayList<Socket> peers = new ArrayList<Socket>();
+                        peers.add(clntChan.socket());
+                        this.pieceManager.getPieceMap().put(pieceIndex, peers);
+                    } else {
+                        this.pieceManager.getPieceMap().get(pieceIndex).add(clntChan.socket());
+                    }
+                }
+
+                // Print the peers with their available pieces
+                // for (int name: this.pieceManager.getPieceMap().keySet()){
+                // String value = this.pieceManager.getPieceMap().get(name).toString();
+                // System.out.println(name + " " + value);
+                // }
+
                 if (!isSeeding) {
-                    Simple.sendMessage(Simple.INTERESTED, out);
+                    Simple.sendMessage(Simple.INTERESTED, clntChan);
+                    LOG.debug("Send interested message to " + clntChan);
                 }
                 break;
             case Request.REQUEST_TYPE:
                 Request request = (Request) msgReceived;
-                this.handleRequest(request, out);
+                LOG.debug("Request message received for index " + request.getIndex() + " from client " + clntChan);
+                this.handleRequest(request, clntChan);
                 break;
             case Piece.PIECE_TYPE:
                 Piece piece = (Piece) msgReceived;
-                this.handlePieceMsg(dataIn, piece, out);
+                LOG.debug("Piece message received for index " + piece.getPieceIndex() + " from client " + clntChan);
+                this.handlePieceMsg(piece, clntChan);
                 break;
             // TODO if implementing endgame
-            // case CANCEL.CANCEL_TYPE:
-
+            // case Cancel.CANCEL_TYPE:
+            // Cancel cancel = (Cancel) msgReceived;
+            // this.handlePieceMsg(piece, clntChan);
             // break;
             default:
                 // never reached test before;
@@ -235,22 +307,20 @@ public class Client {
         return stillReading;
     }
 
-    private boolean handleHandshake(Handshake handshake, OutputStream out) throws IOException {
+    private boolean handleHandshake(Handshake handshake, SelectionKey key) throws IOException {
         LOG.debug("Handling Handshake message");
         if (handshake.getSha1Hash().compareTo(this.torrent.info_hash) != 0) {
             LOG.error("Sha1 hash received different from torrent file");
             return false;
         }
-        // TODO store peer_id ?
-
         // who send handshake first ?
         // Handshake.sendMessage(this.torrent.info_hash, out);
 
-        Bitfield.sendMessage(out);
+        Bitfield.sendMessage(Bitfield.ourBitfieldData, key);
         return true;
     }
 
-    private void handleRequest(Request request, OutputStream out) throws IOException {
+    private void handleRequest(Request request, SocketChannel clntChan) throws IOException {
         int pieceIndex = request.getIndex();
         int beginOffset = request.getBeginOffset();
         int pieceLength = request.getPieceLength();
@@ -258,33 +328,40 @@ public class Client {
         byte[] partData = Arrays.copyOfRange(pieceData, beginOffset, beginOffset + pieceLength);
 
         LOG.debug("Sending pieces for");
-        Piece.sendMessage(pieceLength + Piece.HEADER_LENGTH, pieceIndex, beginOffset, partData, out);
+        Piece.sendMessage(pieceLength + Piece.HEADER_LENGTH, pieceIndex, beginOffset, partData, clntChan);
     }
 
     // TODO send new request if fail for a part
-    private void handlePieceMsg(DataInputStream dataIn, Piece piece, OutputStream out) throws IOException {
+    private void handlePieceMsg(Piece piece, SocketChannel clntChan) throws IOException {
         int pieceIndex = piece.getPieceIndex();
         int beginOffset = piece.getBeginOffset();
         byte[] data = piece.getData();
 
         LOG.debug("Piece with index " + pieceIndex + " with beginOffset " + beginOffset);
+        System.out.println("handlePieceMsg");
 
         this.outputFile.writeToFile(pieceIndex * Torrent.pieces_length + beginOffset, data);
-        // nextIndexToRequest++;
 
+        int nextPiece = this.pieceManager.nextPieceToRequest(clntChan.socket());
         if (pieceIndex < Torrent.numberOfPieces - 1) {
             // request only if last part of piece has been received
             if (beginOffset == Torrent.pieces_length - Piece.DATA_LENGTH) {
                 if (Piece.testPieceHash(pieceIndex, this.outputFile.getPieceData(pieceIndex))) {
-                    Have.sendMessage(pieceIndex, out);
-                    Request.sendMessageForIndex(this.piecesDispoToRequest.get(++nextIndexToRequest),
-                            Torrent.numberOfPartPerPiece, out);
-                    LOG.info(this.piecesDispoToRequest.get(nextIndexToRequest));
-                }
-                else {
-                    // request same piece again
-                    Request.sendMessageForIndex(this.piecesDispoToRequest.get(nextIndexToRequest),
-                            Torrent.numberOfPartPerPiece, out);
+
+                    Have.sendMessage(pieceIndex, clntChan);
+                    // set this piece downloaded
+                    this.pieceManager.pieceDownloaded(pieceIndex);
+                    // search for next piece to be requested
+                    LOG.debug("nextPiece to be requested " + nextPiece);
+                    // only request if we still lack pieces
+                    if (nextPiece != -1) {
+                        Request.sendMessageForIndex(nextPiece, Torrent.numberOfPartPerPiece, clntChan);
+                        LOG.debug("Request message sent for " + nextPiece + " to client " + clntChan);
+                        this.pieceManager.requestSent(nextPiece);
+                    }
+
+                } else {
+                    Request.sendMessageForIndex(nextPiece, Torrent.numberOfPartPerPiece, clntChan);
                 }
             }
         } else {
@@ -292,25 +369,20 @@ public class Client {
             if (beginOffset == Torrent.pieces_length - Piece.DATA_LENGTH) {
                 // last part of last piece received
                 if (Piece.testPieceHash(pieceIndex, this.outputFile.getPieceData(pieceIndex))) {
-                Have.sendMessage(pieceIndex, out);
-                this.tracker.generateUrl(Tracker.EVENT_COMPLETED);
-                this.tracker.getRequest(Tracker.EVENT_COMPLETED);
-                Simple.sendMessage(Simple.NOTINTERESTED, out);
-                this.closeConnection(dataIn);
-                stillReading = false;
-                }
-                else {
-                    // request same piece again
-                    Request.sendMessageForIndex(this.piecesDispoToRequest.get(nextIndexToRequest),
-                            Torrent.numberOfPartPerPiece, out);
+
+                    this.pieceManager.pieceDownloaded(pieceIndex);
+                    Have.sendMessage(pieceIndex, clntChan);
+                } else {
+                    Request.sendMessageForIndex(nextPiece, Torrent.numberOfPartPerPiece, clntChan);
                 }
             }
         }
     }
 
-    private void closeConnection(DataInputStream dataIn) throws IOException {
-        dataIn.close();
-        this.socket.close();
+    private void closeConnection() throws IOException {
+        for (SocketChannel clntChan : this.otherClientsChannels) {
+            clntChan.close();
+        }
         LOG.info("Connection closed");
     }
 

@@ -1,9 +1,9 @@
 package bittorensimag.MessageCoder;
 
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.EOFException;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.SocketChannel;
 
 import org.apache.log4j.Logger;
 
@@ -13,73 +13,123 @@ import bittorensimag.Util.Util;
 public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
     private static final Logger LOG = Logger.getLogger(MsgCoderFromWire.class);
 
-    public byte[] readLength(DataInputStream in, int length) {
+    public byte[] readLength(SocketChannel clntChan, int length)throws IOException {
         byte[] bytesArray = new byte[length];
-        for (int i = 0; i < length; i++) {
-            try {
-                bytesArray[i] = in.readByte();
-            } catch (IOException e) {
-                LOG.error("Error while reading bytes for length " + length);
-            }
-        }
+    	ByteBuffer readBuffer = ByteBuffer.allocate(length);
+    	int receivedByte = 0;
+
+    	while(readBuffer.remaining() != 0) {
+            receivedByte =  clntChan.read(readBuffer);
+    	}
+    	readBuffer.rewind();
+
+    	readBuffer.get(bytesArray, 0 , length);
         return bytesArray;
     }
 
-    public int readLengthInt(DataInputStream in, int length) {
+    public int readLengthInt(SocketChannel clntChan, int length)throws IOException {
         String lengthString = "";
+        
+    	ByteBuffer readBuffer = ByteBuffer.allocate(length);
+    	int receivedByte = 0;
+    	
+    	long startTime = System.currentTimeMillis(); //fetch starting time
+
+    	while(readBuffer.remaining() != 0 && (System.currentTimeMillis()-startTime)<10000) {
+            receivedByte =  clntChan.read(readBuffer);
+    	}
+    	
+    	if(receivedByte == 0 && (System.currentTimeMillis()-startTime) >= 10000) {
+    		System.out.println("no reponse");
+    		return 0 ;
+    	}
+        
         for (int i = 0; i < length; i++) {
-            try {
-                lengthString += Util.intToHexStringWith0(in.readUnsignedByte());
-            } catch (IOException e) {
-                LOG.error("Error while reading ints for length " + length);
-            }
+            lengthString += Util.intToHexStringWith0(readBuffer.get(i)& 0xff);
         }
         return Integer.parseInt(lengthString, 16);
     }
 
     @Override
-    public Object fromWire(DataInputStream in) throws IOException {
-        int firstByte;
-        try {
-            firstByte = in.readUnsignedByte();
-        } catch (EOFException e) {
-            LOG.error("No more messages to read ! Closing socket");
-            return -1;
-        }
-        return fromWire(firstByte, in);
+    public Object fromWire(SelectionKey key ) throws IOException {    	
+    	SocketChannel clntChan = (SocketChannel) key.channel();
+
+    	System.out.println("created channel "+ clntChan);
+    	
+    	ByteBuffer firstByteBuffer = ByteBuffer.allocate(1);
+    	int firstByte = 0;
+    	
+    	long startTime = System.currentTimeMillis(); //fetch starting time
+
+    	while(firstByteBuffer.remaining() != 0 && (System.currentTimeMillis()-startTime)<10000) {
+            firstByte =  clntChan.read(firstByteBuffer);
+    	}
+    	System.out.println("firstByte " + firstByteBuffer.get(0));
+    	
+    	if(firstByte == 0 && (System.currentTimeMillis()-startTime) >= 10000) {
+    		System.out.println("no reponse");
+    		return null ;
+    	}
+    	
+        return fromWire(firstByteBuffer,clntChan);
     }
 
     @Override
-    public Object fromWire(int firstByte, DataInputStream in) throws IOException {
+    public Object fromWire(ByteBuffer firstByteBuffer,SocketChannel clntChan) throws IOException {
+    	//set position to zero 
+    	firstByteBuffer.rewind();
+    	byte firstByte = firstByteBuffer.get();
+
         if (firstByte == Handshake.HANDSHAKE_LENGTH) {
             LOG.debug("Received Message : Handshake");
 
             // reading the protocol name
-            byte[] protocol = this.readLength(in, 19);
+            byte[] protocol = this.readLength(clntChan, Handshake.HANDSHAKE_LENGTH);
+
+            System.out.println("protocol name : " + new String(protocol));
             if (Handshake.protocolName.compareTo(new String(protocol)) != 0) {
                 LOG.error("This is not bittorent protocol");
                 return null;
             }
 
             // reading extension bytes
-            byte[] extensionBytes = this.readLength(in, 8);
+            byte[] extensionBytes = this.readLength(clntChan, 8);
             long extensionBytesLong = Long.parseLong(Util.bytesToHex(extensionBytes));
+            
+            System.out.println("extensionBytesLong " + extensionBytesLong);
 
             // reading sha1 hash
-            byte[] sha1HashBytes = this.readLength(in, 20);
+            byte[] sha1HashBytes = this.readLength(clntChan, 20);
             String sha1Hash = Util.bytesToHex(sha1HashBytes);
+            
+            System.out.println("sha1Hash " + sha1Hash);
+
 
             // reading peer_id
-            byte[] peerId = this.readLength(in, 20);
+            byte[] peerId = this.readLength(clntChan, 20);
+            
+            System.out.println("peerId " + peerId);
 
             return new Handshake(sha1Hash, peerId, extensionBytesLong);
-        } else {
+        } 
+            else {
             // read three last bytes of length
-            int totalLength = this.readTotalLength(in, firstByte);
+            System.out.println("msgCoderFromWire ligne 114");
+            int totalLength = this.readTotalLength(clntChan ,firstByte);
+
+            System.out.println("totalLength " + totalLength);
+            
+            if(totalLength == 0) {
+            	return null;
+            }
 
             // read type
-            int type = in.readUnsignedByte();
+            int type = this.readLength(clntChan, 1)[0];
+            System.out.println("type " + type);
+
+            
             LOG.debug("Received Message : " + Msg.messagesNames.get(type));
+
             switch (type) {
                 case Simple.CHOKE:
                     return new Simple(Simple.CHOKE);
@@ -90,24 +140,25 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
                 case Simple.NOTINTERESTED:
                     return new Simple(Simple.NOTINTERESTED);
                 case Have.HAVE_TYPE:
-                    int index = this.readLengthInt(in, totalLength - 1);
+                    int index = this.readLengthInt(clntChan, totalLength - 1);
                     return new Have(index);
                 case Bitfield.BITFIELD_TYPE:
-                    byte[] bitfieldData = this.readLength(in, totalLength - 1);
+                    byte[] bitfieldData = this.readLength(clntChan, totalLength - 1);
                     return new Bitfield(bitfieldData);
                 case Request.REQUEST_TYPE:
-                    int requestIndex = in.readInt();
-                    int requestOffset = in.readInt();
-                    int lengthPiece = this.readLengthInt(in, 4);
+                    int requestIndex =  this.readLengthInt(clntChan, 4);
+                    int requestOffset =  this.readLengthInt(clntChan, 4);
+                    int lengthPiece =  this.readLengthInt(clntChan, 4);
                     return new Request(requestIndex, requestOffset, lengthPiece);
                 case Piece.PIECE_TYPE:
-                    int pieceIndex = in.readInt();
-                    int beginOffset = in.readInt();
-                    byte[] data = readData(in, pieceIndex, totalLength);
+                    int pieceIndex = this.readLengthInt(clntChan, 4);
+                    int beginOffset = this.readLengthInt(clntChan, 4);
+                    // TODO useless , use instead readLength
+                    byte[] data = readData(clntChan, totalLength);
                     return new Piece(totalLength, pieceIndex, beginOffset, data);
                 // TODO if implementing endgame
-                // case CANCEL.CANCEL_TYPE:
-                // return new Cancel();
+//                 case CANCEL.CANCEL_TYPE:
+//                 return new Cancel();
                 default:
                     break;
             }
@@ -116,11 +167,56 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
         return null;
     }
 
-    private int readTotalLength(DataInputStream in, int firstByte) throws IOException {
+//    private int readTotalLength(SocketChannel clntChan, int firstByte) throws IOException {
+//    	
+//    	ByteBuffer readBuffer = ByteBuffer.allocate(3);
+//    	int receivedByte = 0;
+//    	
+//    	long startTime = System.currentTimeMillis(); //fetch starting time
+//
+//    	while(readBuffer.remaining() != 0 && (System.currentTimeMillis()-startTime) >= 10000) {
+//            receivedByte =  clntChan.read(readBuffer);
+//    	}
+//    	
+//    	if(receivedByte == 0 && (System.currentTimeMillis()-startTime) >= 10000) {
+//    		System.out.println("no reponse");
+//    		return 0 ;
+//    	}
+//        
+//        String firstByteString = Util.intToHexStringWith0(firstByte);
+//        String secondByteString = Util.intToHexStringWith0(readBuffer.get(0));
+//        String thirdByteString = Util.intToHexStringWith0(readBuffer.get(1));
+//        String fourthByteString = Util.intToHexStringWith0(readBuffer.get(2));
+//
+//        //TODO correct this
+//        if(fourthByteString.equals("FFFFFFE1")) {
+//        
+//            return 1249;
+//        }
+//
+//        return Integer.parseInt(firstByteString + secondByteString + thirdByteString + fourthByteString, 16);
+//    }
+    
+    private int readTotalLength(SocketChannel clntChan, int firstByte) throws IOException {
+    	
+    	ByteBuffer readBuffer = ByteBuffer.allocate(3);
+    	int receivedByte = 0;
+    	
+
+    	while(readBuffer.remaining() != 0 ) {
+            receivedByte =  clntChan.read(readBuffer);
+    	}
+    	
         String firstByteString = Util.intToHexStringWith0(firstByte);
-        String secondByteString = Util.intToHexStringWith0(in.readUnsignedByte());
-        String thirdByteString = Util.intToHexStringWith0(in.readUnsignedByte());
-        String fourthByteString = Util.intToHexStringWith0(in.readUnsignedByte());
+        String secondByteString = Util.intToHexStringWith0(readBuffer.get(0));
+        String thirdByteString = Util.intToHexStringWith0(readBuffer.get(1));
+        String fourthByteString = Util.intToHexStringWith0(readBuffer.get(2));
+
+        //TODO correct this
+        if(fourthByteString.equals("FFFFFFE1")) {
+        
+            return 1249;
+        }
 
         return Integer.parseInt(firstByteString + secondByteString + thirdByteString + fourthByteString, 16);
     }
@@ -128,20 +224,21 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
     /*
      * read all the data of a piece and put it the map
      */
-    private byte[] readData(DataInputStream in, int pieceIndex, int lengthMessage) {
-        ByteArrayOutputStream messageBuffer = new ByteArrayOutputStream();
-
+    private byte[] readData(SocketChannel clntChan, int lengthMessage) throws IOException{
         int pieceDataLength = lengthMessage - Piece.HEADER_LENGTH;
+        byte[] bytesArray = new byte[pieceDataLength];
+        
+        ByteBuffer readBuffer = ByteBuffer.allocate(pieceDataLength);
+    	int receivedByte = 0;
 
-        for (int i = 0; i < pieceDataLength; i++) {
-            try {
-                int nextByte = in.readUnsignedByte();
-                messageBuffer.write(nextByte);
+    	while(readBuffer.remaining() != 0) {
+            receivedByte =  clntChan.read(readBuffer);
+    	}
+    	readBuffer.rewind();
 
-            } catch (IOException e) {
-                LOG.error("Error while reading data inside piece message");
-            }
-        }
-        return messageBuffer.toByteArray();
+    	readBuffer.get(bytesArray, 0 , pieceDataLength);
+
+        return bytesArray ;
+        
     }
 }

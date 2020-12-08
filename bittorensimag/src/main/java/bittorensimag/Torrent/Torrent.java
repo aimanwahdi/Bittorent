@@ -49,9 +49,7 @@ public class Torrent {
     public static int pieces_length;
     public static int totalSize;
 
-    public static Map<Integer, byte[]> dataMap = new HashMap<Integer, byte[]>();
     public static Map<Integer, byte[]> piecesHashes = new HashMap<Integer, byte[]>();
-
 
     public final static String INFO = "info";
 

@@ -2,6 +2,9 @@ package bittorensimag.Messages;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 
 import org.apache.log4j.Logger;
@@ -40,31 +43,42 @@ public class Bitfield extends Msg {
 		Bitfield.ourBitfieldData[index] = status;
 	}
 
-	public static void sendMessage(OutputStream out) throws IOException {
+	public static void sendMessage(byte[] dataBitfield, SelectionKey key) throws IOException {
 		MsgCoderToWire coderToWire = new MsgCoderToWire();
-		Bitfield msgBitfield = new Bitfield(ourBitfieldData);
-		coderToWire.frameMsg(coderToWire.toWire(msgBitfield), out);
-		LOG.debug("Message Bitfield sent with data : " + Util.bytesToHex(ourBitfieldData));
+		Bitfield msgBitfield = new Bitfield(dataBitfield);
+		SocketChannel clntChan = (SocketChannel) key.channel();
+
+		try {
+			ByteBuffer writeBuf = ByteBuffer.wrap(coderToWire.toWire(msgBitfield));
+
+			if (writeBuf.hasRemaining()) {
+				clntChan.write(writeBuf);
+			}
+
+			System.out.println("Message Bitfield sent");
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		LOG.debug("Message Bitfield sent with data : " + Util.bytesToHex(dataBitfield));
 	}
-	
+
 	public static ArrayList<Integer> convertBitfieldToList(byte[] bitfieldData, int numberOfPiece) {
 		ArrayList<Integer> listePieceDispo = new ArrayList<Integer>();
-    	int index = 0;
-    	outerloop:
-		for (int i = 0; i < bitfieldData.length; i++) {
-    		for(int j=0; j<8; j++) {
+		int index = 0;
+		outerloop: for (int i = 0; i < bitfieldData.length; i++) {
+			for (int j = 0; j < 8; j++) {
 				int valueOfBit = (bitfieldData[i] >> (7 - j)) & 1; // retrieve the value of bit from highest bit to
 																	// lowest bit
-    			if (valueOfBit == 1){
-    				listePieceDispo.add(index);
-    			}
-    			index++;
-    			if(index == numberOfPiece) {
-    				break outerloop;
-    			}
-    		}
-    	}
-    	return listePieceDispo;
+				if (valueOfBit == 1) {
+					listePieceDispo.add(index);
+				}
+				index++;
+				if (index == numberOfPiece) {
+					break outerloop;
+				}
+			}
+		}
+		return listePieceDispo;
 	}
 
 }

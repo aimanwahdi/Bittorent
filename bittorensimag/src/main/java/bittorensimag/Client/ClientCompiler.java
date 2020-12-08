@@ -41,8 +41,6 @@ public class ClientCompiler {
         LOG.debug("Successfully generated GET Request");
         tracker.getRequest(Tracker.EVENT_STARTED);
 
-        Client client = new Client(torrent, tracker, new MsgCoderToWire(), new MsgCoderFromWire(), destinationFolder);
-
         // Try each 5 sec to find other peers
         synchronized (this) {
             while (!tracker.foundAnotherPeer()) {
@@ -56,6 +54,8 @@ public class ClientCompiler {
             }
         }
         LOG.info("Found another peer for torrent file : " + sourceTorrent.getName());
+
+        Client client = new Client(torrent, tracker, new MsgCoderToWire(), new MsgCoderFromWire(), destinationFolder);
 
         client.startCommunication();
         return true;
