@@ -1,6 +1,10 @@
 package bittorensimag.Util;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map.Entry;
 import java.util.Random;
 
 public class Util {
@@ -59,5 +63,20 @@ public class Util {
     	byte[] result = Arrays.copyOf(first, first.length + second.length);
 		System.arraycopy(second, 0, result, first.length, second.length);
 		return result;
+    }
+    
+    // Change hashmap listPeers with listofPiece that the peer has to hashmap Piece with listofPeers that have that piece
+    public static HashMap<Integer, ArrayList<String>> selectionPiece(HashMap<String, ArrayList<Integer>> peers, int numOfPiece){
+    	HashMap<Integer, ArrayList<String>> hmap = new HashMap<Integer, ArrayList<String>>();
+    	for(int i=0; i < numOfPiece; i++) {
+    		ArrayList<String> peerPort = new ArrayList<String>();
+    		for (Entry<String, ArrayList<Integer>> mapentry : peers.entrySet()) {
+    			if(mapentry.getValue().contains(i)) {
+    				peerPort.add(mapentry.getKey());
+    			}
+    		}
+    		hmap.put(i, peerPort);
+    	}
+    	return hmap;
     }
 }

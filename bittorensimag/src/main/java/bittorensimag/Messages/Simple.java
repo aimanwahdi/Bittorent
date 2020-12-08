@@ -48,7 +48,6 @@ public class Simple extends Msg {
     public static void sendMessage(int msgType, SocketChannel clntChan) throws IOException {
         MsgCoderToWire coderToWire = new MsgCoderToWire();
         Simple msg = new Simple(msgType);
-//        coderToWire.frameMsg(coderToWire.toWire(msg), out);
 		try {
 			ByteBuffer writeBuf = ByteBuffer.wrap(coderToWire.toWire(msg));
 
@@ -56,7 +55,7 @@ public class Simple extends Msg {
 				clntChan.write(writeBuf);
 			}
 			
-			System.out.println("Message Handshake sent");
+			System.out.println("Message Simple sent");
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
