@@ -5,6 +5,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 import org.apache.log4j.Logger;
 
@@ -18,6 +19,15 @@ public class Bitfield extends Msg {
 	private static int bitfieldLength = (int) Math.ceil((double) Torrent.numberOfPieces / 8);
 
 	public static byte[] ourBitfieldData = new byte[bitfieldLength];
+
+	public static byte[] fullBitfield = new byte[bitfieldLength];
+
+	public static byte[] fakeFullBitfield = new byte[bitfieldLength];
+	{
+		Arrays.fill(fullBitfield, (byte) 0xff);
+		Arrays.fill(fakeFullBitfield, (byte) 0xff);
+		fakeFullBitfield[bitfieldLength - 1] = (byte) 0xf0;
+	}
 
 	private byte[] bitfieldData;
 

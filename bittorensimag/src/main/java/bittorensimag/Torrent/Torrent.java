@@ -45,7 +45,7 @@ public class Torrent {
     public static int numberOfPartPerPiece;
     public static int numberOfPieces;
     public static int lastPieceLength;
-    public static int lastPieceNumberOfPart;
+    public static int lastPieceNumberOfParts;
     public static int lastPartLength;
     public static int pieces_length;
     public static int totalSize;
@@ -175,7 +175,7 @@ public class Torrent {
                 .ceil((double) totalSize / (double) (Torrent.numberOfPartPerPiece * Piece.DATA_LENGTH));
         Torrent.lastPieceLength = totalSize % (Torrent.numberOfPartPerPiece * Piece.DATA_LENGTH);
         Torrent.lastPartLength = totalSize % Piece.DATA_LENGTH;
-        Torrent.lastPieceNumberOfPart = (int) Math.ceil((double) Torrent.lastPieceLength / (double) Piece.DATA_LENGTH);
+        Torrent.lastPieceNumberOfParts = (int) Math.ceil((double) Torrent.lastPieceLength / (double) Piece.DATA_LENGTH);
 
     }
 
@@ -211,7 +211,7 @@ public class Torrent {
                 if (Piece.testPieceHash(pieceNumber, pieceData)) {
                     LOG.debug("Piece " + pieceNumber + " correct");
                     bitSet.set(b);
-                    pieceManager.setDownloaded(pieceNumber, true);
+                    pieceManager.pieceDownloaded(pieceNumber);
                 } else {
                     // else bit stays as false
                     isComplete = false;
@@ -241,6 +241,7 @@ public class Torrent {
             if (Piece.testPieceHash(pieceNumber, pieceData)) {
                 LOG.debug("Piece " + pieceNumber + " correct");
                 bitSet.set(b);
+                pieceManager.pieceDownloaded(pieceNumber);
             } else {
                 // else bit stays as false
                 isComplete = false;
@@ -257,6 +258,10 @@ public class Torrent {
         bitSet.clear();
 
         file.closeInChannel();
+        if (Bitfield.ourBitfieldData == Bitfield.fullBitfield) {
+            LOG.debug("Our bitfield is full change last one for lazy bitfield");
+            Bitfield.setByteInBitfield(numberOfBytes, (byte) 0xF0);
+        }
         return isComplete;
     }
 }

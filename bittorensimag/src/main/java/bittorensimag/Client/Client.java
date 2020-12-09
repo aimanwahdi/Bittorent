@@ -38,11 +38,11 @@ public class Client {
     private Bitfield bitfieldReceived;
     private ArrayList<Integer> piecesDispo;
 
-    private boolean stillReading = true;
-
     private Output outputFile;
 
     private PieceManager pieceManager;
+
+    private boolean piecesMissing = true;
 
     public Client(Torrent torrent, Tracker tracker, MsgCoderToWire coderToWire, MsgCoderFromWire coderFromWire,
             File destinationFolder) throws IOException {
@@ -87,14 +87,14 @@ public class Client {
         }
     }
 
-    public void startCommunication() {
+    public void startCommunication() throws IOException {
         LOG.debug("Starting communication with the peer");
         // send handshakes to all clients
         for (SocketChannel clntChan : this.otherClientsChannels) {
             Handshake.sendMessage(this.torrent.info_hash, clntChan);
         }
 
-        while (stillReading) { // Run while reading processing available I/O operations
+        while (piecesMissing) { // Run while reading processing available I/O operations
             // Wait for some channel to be ready (or timeout)
 
             try {
@@ -106,45 +106,33 @@ public class Client {
 
             }
 
-            LOG.info("Available I/O operations found");
+            // LOG.info("Available I/O operations found");
 
             // Get iterator on set of keys with I/O to process
             Iterator<SelectionKey> keyIter = this.selector.selectedKeys().iterator();
-            LOG.debug("Number of keys available " + this.selector.selectedKeys().size());
+            // LOG.debug("Number of keys available " + this.selector.selectedKeys().size());
 
             while (keyIter.hasNext()) {
                 SelectionKey key = keyIter.next();
                 if (key.isReadable()) {
                     LOG.debug("Readable key");
-                }
-                // Client socket channel is available for writing
-                if (key.isWritable()) {
-                    LOG.debug("Writable key");
-                    try {
-                        if (this.pieceManager.getDownloaded().contains(false)) {
+                    // Client socket channel is available for writing
+                    if (key.isWritable()) {
+                        LOG.debug("Writable key");
+                        try {
                             this.receivedMsg(this.coderToWire, this.coderFromWire, key);
-
-                        } else {
-                            // end communication with all clients
-                            for (SocketChannel clntChan : this.otherClientsChannels) {
-                                Simple.sendMessage(Simple.NOTINTERESTED, clntChan);
-                            }
-
-                            this.closeConnection();
-                            stillReading = false;
-                            break;
+                        } catch (IOException ioe) {
+                            LOG.error("Error handling client: " + ioe.getMessage());
                         }
-
-                    } catch (IOException ioe) {
-                        LOG.error("Error handling client: " + ioe.getMessage());
                     }
                 }
-                LOG.debug("Key " + key + " have been treated");
+                // LOG.debug("Key " + key + " have been treated");
 
                 // remove from set of selected keys
                 keyIter.remove();
             }
         }
+        this.closeConnection();
     }
 
     private void createSelector() throws IOException {
@@ -249,6 +237,12 @@ public class Client {
             case Bitfield.BITFIELD_TYPE:
                 bitfieldReceived = (Bitfield) msgReceived;
 
+                // Override almost full bitfield with full one (lazy bitfield)
+                if (bitfieldReceived.getBitfieldDATA() == Bitfield.fakeFullBitfield) {
+                    LOG.debug("Received full lazy bitfield, override to full");
+                    bitfieldReceived.setBitfieldDATA(Bitfield.fullBitfield);
+                }
+
                 // create the list of available pieces for this client based on its bietfield
                 piecesDispo = Bitfield.convertBitfieldToList(bitfieldReceived.getBitfieldDATA(),
                         Torrent.numberOfPieces);
@@ -295,7 +289,7 @@ public class Client {
                 break;
         }
 
-        return stillReading;
+        return piecesMissing;
     }
 
     private boolean handleHandshake(Handshake handshake, SelectionKey key) throws IOException {
@@ -318,7 +312,7 @@ public class Client {
         byte[] pieceData = this.outputFile.getPieceData(pieceIndex);
         byte[] partData = Arrays.copyOfRange(pieceData, beginOffset, beginOffset + pieceLength);
 
-        LOG.debug("Sending pieces for");
+        LOG.debug("Sending pieces for" + clntChan);
         Piece.sendMessage(pieceLength + Piece.HEADER_LENGTH, pieceIndex, beginOffset, partData, clntChan);
     }
 
@@ -332,12 +326,11 @@ public class Client {
 
         this.outputFile.writeToFile(pieceIndex * Torrent.pieces_length + beginOffset, data);
 
-        int nextPiece = this.pieceManager.nextPieceToRequest(clntChan.socket());
         if (pieceIndex < Torrent.numberOfPieces - 1) {
             // request only if last part of piece has been received
             if (beginOffset == Torrent.pieces_length - Piece.DATA_LENGTH) {
                 if (Piece.testPieceHash(pieceIndex, this.outputFile.getPieceData(pieceIndex))) {
-
+                    int nextPiece = this.pieceManager.nextPieceToRequest(clntChan.socket());
                     Have.sendMessage(pieceIndex, clntChan);
                     // set this piece downloaded
                     this.pieceManager.pieceDownloaded(pieceIndex);
@@ -349,28 +342,43 @@ public class Client {
                         LOG.debug("Request message sent for " + nextPiece + " to client " + clntChan);
                         this.pieceManager.requestSent(nextPiece);
                     }
+                    else if (!this.pieceManager.getDownloaded().contains(false)) {
+                        this.piecesMissing = false;
+                    }
 
                 } else {
-                    Request.sendMessageForIndex(nextPiece, Torrent.numberOfPartPerPiece, clntChan);
+                    Request.sendMessageForIndex(pieceIndex, Torrent.numberOfPartPerPiece, clntChan);
                 }
             }
         } else {
             // last piece
-            if (beginOffset == Torrent.pieces_length - Piece.DATA_LENGTH) {
+            if (beginOffset == Torrent.lastPieceLength - Torrent.lastPartLength) {
                 // last part of last piece received
                 if (Piece.testPieceHash(pieceIndex, this.outputFile.getPieceData(pieceIndex))) {
-
+                    int nextPiece = this.pieceManager.nextPieceToRequest(clntChan.socket());
                     this.pieceManager.pieceDownloaded(pieceIndex);
                     Have.sendMessage(pieceIndex, clntChan);
+                    // search for next piece to be requested
+                    LOG.debug("nextPiece to be requested " + nextPiece);
+                    // only request if we still lack pieces
+                    if (nextPiece != -1) {
+                        Request.sendMessageForIndex(nextPiece, Torrent.numberOfPartPerPiece, clntChan);
+                        LOG.debug("Request message sent for " + nextPiece + " to client " + clntChan);
+                        this.pieceManager.requestSent(nextPiece);
+                    } else if (!this.pieceManager.getDownloaded().contains(false)) {
+                        this.piecesMissing = false;
+                    }
                 } else {
-                    Request.sendMessageForIndex(nextPiece, Torrent.numberOfPartPerPiece, clntChan);
+                    Request.sendMessageForIndex(pieceIndex, Torrent.numberOfPartPerPiece, clntChan);
                 }
             }
         }
     }
 
     private void closeConnection() throws IOException {
+        // end communication with all clients
         for (SocketChannel clntChan : this.otherClientsChannels) {
+            Simple.sendMessage(Simple.NOTINTERESTED, clntChan);
             clntChan.close();
         }
         LOG.info("Connection closed");

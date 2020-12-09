@@ -60,9 +60,4 @@ public class PieceManager {
 	public ArrayList<Boolean> getDownloaded() {
 		return downloaded;
 	}
-
-	public void setDownloaded(int index, boolean bool) {
-		downloaded.set(index, bool);
-	}
-
 }

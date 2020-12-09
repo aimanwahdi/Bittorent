@@ -64,6 +64,9 @@ public class Request extends Msg {
 	}
 
 	public static void sendMessageForIndex(int index, int numberOfParts, SocketChannel clntChan) throws IOException {
+		if (index == Torrent.numberOfPieces - 1) {
+			numberOfParts = Torrent.lastPieceNumberOfParts;
+		}
 		for (int j = 0; j < numberOfParts - 1; j++) {
 			Request.sendMessage(index, j * Piece.DATA_LENGTH, Piece.DATA_LENGTH, clntChan);
 		}
