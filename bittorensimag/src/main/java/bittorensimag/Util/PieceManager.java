@@ -4,8 +4,6 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-import bittorensimag.Torrent.Torrent;
-
 public class PieceManager {
 	private HashMap<Integer, ArrayList<Socket>> pieceMap; //Clé : Piece Index, Valeur : List of peers that contains this piece
 	private ArrayList<Boolean> downloaded;
@@ -20,8 +18,7 @@ public class PieceManager {
 		this.downloaded = new ArrayList<Boolean>() ;
 		this.requestSent = new ArrayList<Boolean>();
 		this.numOfPiece = numOfPiece;
-		//in the beginning we don't have any piece requested or downloaded
-		// TODO Change according to bitfield
+		// in the beginning we don't have any piece requested or downloaded
 		this.initList(this.downloaded,numOfPiece); 
 		this.initList(this.requestSent,numOfPiece);
 	}
@@ -63,5 +60,9 @@ public class PieceManager {
 	public ArrayList<Boolean> getDownloaded() {
 		return downloaded;
 	}
-	
+
+	public void setDownloaded(int index, boolean bool) {
+		downloaded.set(index, bool);
+	}
+
 }

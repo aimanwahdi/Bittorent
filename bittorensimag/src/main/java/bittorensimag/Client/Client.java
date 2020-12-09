@@ -1,19 +1,14 @@
 package bittorensimag.Client;
 
-import java.io.DataInputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
@@ -24,7 +19,6 @@ import bittorensimag.MessageCoder.MsgCoderFromWire;
 import bittorensimag.MessageCoder.MsgCoderToWire;
 import bittorensimag.Messages.*;
 import bittorensimag.Torrent.*;
-import bittorensimag.Util.ListUtils;
 import bittorensimag.Util.PieceManager;
 
 public class Client {
@@ -43,7 +37,6 @@ public class Client {
 
     private Bitfield bitfieldReceived;
     private ArrayList<Integer> piecesDispo;
-    private ArrayList<Integer> piecesToRequest;
 
     private boolean stillReading = true;
 
@@ -61,9 +54,10 @@ public class Client {
 
         this.outputFile = new Output((String) this.torrent.getMetadata().get(Torrent.NAME),
                 destinationFolder.getAbsolutePath() + "/");
+        this.pieceManager = new PieceManager(Torrent.numberOfPieces);
+
         this.leecherOrSeeder(destinationFolder);
 
-        this.pieceManager = new PieceManager(Torrent.numberOfPieces);
         this.otherClientsChannels = new ArrayList<SocketChannel>();
         this.createSelector(); // create selector
 
@@ -77,7 +71,7 @@ public class Client {
         LOG.debug("Verifying source file : " + f);
         if (f.exists() && f.isFile()) {
             this.outputFile.createFileObjects();
-            if (this.torrent.fillBitfield(this.outputFile)) {
+            if (this.torrent.fillBitfield(this.outputFile, this.pieceManager)) {
                 this.isSeeding = true;
                 LOG.info("Source file found and correct !");
                 LOG.info("SEEDER MODE");

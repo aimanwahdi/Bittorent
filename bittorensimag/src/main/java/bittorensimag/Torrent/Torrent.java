@@ -26,6 +26,7 @@ import bittorensimag.Messages.Bitfield;
 import bittorensimag.Messages.Piece;
 import bittorensimag.Util.Hashage;
 import bittorensimag.Util.MapUtil;
+import bittorensimag.Util.PieceManager;
 import bittorensimag.Util.Util;
 
 public class Torrent {
@@ -189,7 +190,7 @@ public class Torrent {
         }
     }
 
-    public boolean fillBitfield(Output file) throws IOException {
+    public boolean fillBitfield(Output file, PieceManager pieceManager) throws IOException {
         boolean isComplete = true;
         ;
 
@@ -210,6 +211,7 @@ public class Torrent {
                 if (Piece.testPieceHash(pieceNumber, pieceData)) {
                     LOG.debug("Piece " + pieceNumber + " correct");
                     bitSet.set(b);
+                    pieceManager.setDownloaded(pieceNumber, true);
                 } else {
                     // else bit stays as false
                     isComplete = false;

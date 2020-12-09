@@ -184,15 +184,10 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
 //    	}
 //        
 //        String firstByteString = Util.intToHexStringWith0(firstByte);
-//        String secondByteString = Util.intToHexStringWith0(readBuffer.get(0));
-//        String thirdByteString = Util.intToHexStringWith0(readBuffer.get(1));
-//        String fourthByteString = Util.intToHexStringWith0(readBuffer.get(2));
+// String secondByteString = Util.intToHexStringWith0(readBuffer.get(0)&0xff);
+// String thirdByteString = Util.intToHexStringWith0(readBuffer.get(1)&0xff);
+// String fourthByteString = Util.intToHexStringWith0(readBuffer.get(2)&0xff);
 //
-//        //TODO correct this
-//        if(fourthByteString.equals("FFFFFFE1")) {
-//        
-//            return 1249;
-//        }
 //
 //        return Integer.parseInt(firstByteString + secondByteString + thirdByteString + fourthByteString, 16);
 //    }
@@ -208,15 +203,9 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
     	}
     	
         String firstByteString = Util.intToHexStringWith0(firstByte);
-        String secondByteString = Util.intToHexStringWith0(readBuffer.get(0));
-        String thirdByteString = Util.intToHexStringWith0(readBuffer.get(1));
-        String fourthByteString = Util.intToHexStringWith0(readBuffer.get(2));
-
-        //TODO correct this
-        if(fourthByteString.equals("FFFFFFE1")) {
-        
-            return 1249;
-        }
+        String secondByteString = Util.intToHexStringWith0(readBuffer.get(0) & 0xff);
+        String thirdByteString = Util.intToHexStringWith0(readBuffer.get(1) & 0xff);
+        String fourthByteString = Util.intToHexStringWith0(readBuffer.get(2) & 0xff);
 
         return Integer.parseInt(firstByteString + secondByteString + thirdByteString + fourthByteString, 16);
     }
