@@ -58,7 +58,7 @@ public class Request extends Msg {
 			}
 			
 		} catch (IOException e) {
-			e.printStackTrace();
+			LOG.error("Error sending request message");
 		}
 		LOG.debug("Message Request sent for index=" + index + " beginOffset=" + beginOffset);
 	}

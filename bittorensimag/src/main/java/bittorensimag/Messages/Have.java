@@ -40,7 +40,7 @@ public class Have extends Msg {
 				clntChan.write(writeBuf);
 			}
 		} catch (IOException e) {
-			e.printStackTrace();
+			LOG.error("Error sending have message");
 		}
 		LOG.debug("Message Have sent for index=" + index);
 	}

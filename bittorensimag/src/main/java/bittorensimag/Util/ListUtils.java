@@ -40,13 +40,4 @@ public class ListUtils {
 
         return list;
     }
-
-    // private void exemple() {
-    // List<String> list1 = new ArrayList<String>(Arrays.asList("A", "B", "C"));
-    // List<String> list2 = new ArrayList<String>(Arrays.asList("B", "C", "D", "E",
-    // "F"));
-
-    // System.out.println(ListUtils.intersection(list1, list2));
-    // System.out.println(ListUtils.union(list1, list2));
-    // }
 }

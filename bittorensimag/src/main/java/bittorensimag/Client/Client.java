@@ -137,7 +137,6 @@ public class Client {
 
                     } catch (IOException ioe) {
                         LOG.error("Error handling client: " + ioe.getMessage());
-                        ioe.printStackTrace();
                     }
                 }
                 LOG.debug("Key " + key + " have been treated");
@@ -153,7 +152,6 @@ public class Client {
             this.selector = Selector.open();
         } catch (IOException e) {
             LOG.error("Error creating selector: " + e.getMessage());
-            e.printStackTrace();
         }
     }
 
@@ -181,7 +179,6 @@ public class Client {
 
         } catch (IOException e) {
             LOG.fatal("Could not create Socket");
-            e.printStackTrace();
         }
     }
 
@@ -270,7 +267,7 @@ public class Client {
                 // Print the peers with their available pieces
                 // for (int name: this.pieceManager.getPieceMap().keySet()){
                 // String value = this.pieceManager.getPieceMap().get(name).toString();
-                // System.out.println(name + " " + value);
+                // LOG.debug(name + " " + value);
                 // }
 
                 if (!isSeeding) {

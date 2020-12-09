@@ -82,7 +82,7 @@ public class Handshake {
 				clntChan.write(writeBuf);
 			}
 		} catch (IOException e) {
-			e.printStackTrace();
+			LOG.error("Error sending Handshake message");
 		}
 		LOG.debug("Message Handshake sent");
 	}

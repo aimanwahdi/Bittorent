@@ -66,10 +66,9 @@ public class Piece extends Msg {
 			if (writeBuf.hasRemaining()) {
 				clntChan.write(writeBuf);
 			}
-			
-			System.out.println("Message Piece sent");
+
 		} catch (IOException e) {
-			e.printStackTrace();
+			LOG.error("Error sending piece message");
 		}
 		LOG.debug("Message Piece sent index=" + index + " beginOffset=" + beginOffset);
 	}

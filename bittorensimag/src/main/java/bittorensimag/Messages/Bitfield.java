@@ -54,7 +54,7 @@ public class Bitfield extends Msg {
 				clntChan.write(writeBuf);
 			}
 		} catch (IOException e) {
-			e.printStackTrace();
+			LOG.error("Error sending bitfield");
 		}
 		LOG.debug("Message Bitfield sent with data : " + Util.bytesToHex(dataBitfield));
 	}

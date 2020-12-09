@@ -55,7 +55,7 @@ public class Simple extends Msg {
 			}
 			
 		} catch (IOException e) {
-			e.printStackTrace();
+            LOG.error("Error sending " + Msg.messagesNames.get(msgType) + " message");
 		}
         LOG.debug("Message " + Msg.messagesNames.get(msgType) + " sent");
     }
