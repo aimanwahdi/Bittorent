@@ -54,7 +54,6 @@ public class Simple extends Msg {
 				clntChan.write(writeBuf);
 			}
 			
-			System.out.println("Message Simple sent");
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

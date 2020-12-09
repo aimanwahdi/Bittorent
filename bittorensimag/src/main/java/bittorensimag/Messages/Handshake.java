@@ -81,10 +81,9 @@ public class Handshake {
 			if (writeBuf.hasRemaining()) {
 				clntChan.write(writeBuf);
 			}
-			
-			System.out.println("Message Handshake sent");
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+		LOG.debug("Message Handshake sent");
 	}
 }

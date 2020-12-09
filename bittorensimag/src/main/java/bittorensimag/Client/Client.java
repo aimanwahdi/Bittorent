@@ -332,7 +332,6 @@ public class Client {
         byte[] data = piece.getData();
 
         LOG.debug("Piece with index " + pieceIndex + " with beginOffset " + beginOffset);
-        System.out.println("handlePieceMsg");
 
         this.outputFile.writeToFile(pieceIndex * Torrent.pieces_length + beginOffset, data);
 
