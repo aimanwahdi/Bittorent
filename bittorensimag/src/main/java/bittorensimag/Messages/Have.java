@@ -40,8 +40,6 @@ public class Have extends Msg {
 			if (writeBuf.hasRemaining()) {
 				clntChan.write(writeBuf);
 			}
-			
-			System.out.println("Message Have sent");
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

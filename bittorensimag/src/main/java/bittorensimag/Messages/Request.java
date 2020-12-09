@@ -58,7 +58,6 @@ public class Request extends Msg {
 				clntChan.write(writeBuf);
 			}
 			
-			System.out.println("Message msgRequest sent");
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

@@ -54,8 +54,6 @@ public class Bitfield extends Msg {
 			if (writeBuf.hasRemaining()) {
 				clntChan.write(writeBuf);
 			}
-
-			System.out.println("Message Bitfield sent");
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

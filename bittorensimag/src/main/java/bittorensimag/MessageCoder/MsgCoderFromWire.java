@@ -40,7 +40,7 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
     	}
     	
     	if(receivedByte == 0 && (System.currentTimeMillis()-startTime) >= 10000) {
-    		System.out.println("no reponse");
+    		LOG.debug("no reponse");
     		return 0 ;
     	}
         
@@ -54,7 +54,7 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
     public Object fromWire(SelectionKey key ) throws IOException {    	
     	SocketChannel clntChan = (SocketChannel) key.channel();
 
-    	System.out.println("created channel "+ clntChan);
+    	LOG.debug("created channel "+ clntChan);
     	
     	ByteBuffer firstByteBuffer = ByteBuffer.allocate(1);
     	int firstByte = 0;
@@ -64,10 +64,10 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
     	while(firstByteBuffer.remaining() != 0 && (System.currentTimeMillis()-startTime)<10000) {
             firstByte =  clntChan.read(firstByteBuffer);
     	}
-    	System.out.println("firstByte " + firstByteBuffer.get(0));
+    	LOG.debug("firstByte " + firstByteBuffer.get(0));
     	
     	if(firstByte == 0 && (System.currentTimeMillis()-startTime) >= 10000) {
-    		System.out.println("no reponse");
+    		LOG.debug("no reponse");
     		return null ;
     	}
     	
@@ -86,7 +86,6 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
             // reading the protocol name
             byte[] protocol = this.readLength(clntChan, Handshake.HANDSHAKE_LENGTH);
 
-            System.out.println("protocol name : " + new String(protocol));
             if (Handshake.protocolName.compareTo(new String(protocol)) != 0) {
                 LOG.error("This is not bittorent protocol");
                 return null;
@@ -96,28 +95,27 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
             byte[] extensionBytes = this.readLength(clntChan, 8);
             long extensionBytesLong = Long.parseLong(Util.bytesToHex(extensionBytes));
             
-            System.out.println("extensionBytesLong " + extensionBytesLong);
+            LOG.debug("extensionBytesLong " + extensionBytesLong);
 
             // reading sha1 hash
             byte[] sha1HashBytes = this.readLength(clntChan, 20);
             String sha1Hash = Util.bytesToHex(sha1HashBytes);
             
-            System.out.println("sha1Hash " + sha1Hash);
+            LOG.debug("sha1Hash " + sha1Hash);
 
 
             // reading peer_id
             byte[] peerId = this.readLength(clntChan, 20);
             
-            System.out.println("peerId " + peerId);
+            LOG.debug("peerId " + peerId);
 
             return new Handshake(sha1Hash, peerId, extensionBytesLong);
         } 
             else {
             // read three last bytes of length
-            System.out.println("msgCoderFromWire ligne 114");
             int totalLength = this.readTotalLength(clntChan ,firstByte);
 
-            System.out.println("totalLength " + totalLength);
+            LOG.debug("totalLength " + totalLength);
             
             if(totalLength == 0) {
             	return null;
@@ -125,8 +123,6 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
 
             // read type
             int type = this.readLength(clntChan, 1)[0];
-            System.out.println("type " + type);
-
             
             LOG.debug("Received Message : " + Msg.messagesNames.get(type));
 
@@ -153,7 +149,6 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
                 case Piece.PIECE_TYPE:
                     int pieceIndex = this.readLengthInt(clntChan, 4);
                     int beginOffset = this.readLengthInt(clntChan, 4);
-                    // TODO useless , use instead readLength
                     byte[] data = readData(clntChan, totalLength);
                     return new Piece(totalLength, pieceIndex, beginOffset, data);
                 // TODO if implementing endgame
@@ -166,36 +161,6 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
         }
         return null;
     }
-
-//    private int readTotalLength(SocketChannel clntChan, int firstByte) throws IOException {
-//    	
-//    	ByteBuffer readBuffer = ByteBuffer.allocate(3);
-//    	int receivedByte = 0;
-//    	
-//    	long startTime = System.currentTimeMillis(); //fetch starting time
-//
-//    	while(readBuffer.remaining() != 0 && (System.currentTimeMillis()-startTime) >= 10000) {
-//            receivedByte =  clntChan.read(readBuffer);
-//    	}
-//    	
-//    	if(receivedByte == 0 && (System.currentTimeMillis()-startTime) >= 10000) {
-//    		System.out.println("no reponse");
-//    		return 0 ;
-//    	}
-//        
-//        String firstByteString = Util.intToHexStringWith0(firstByte);
-//        String secondByteString = Util.intToHexStringWith0(readBuffer.get(0));
-//        String thirdByteString = Util.intToHexStringWith0(readBuffer.get(1));
-//        String fourthByteString = Util.intToHexStringWith0(readBuffer.get(2));
-//
-//        //TODO correct this
-//        if(fourthByteString.equals("FFFFFFE1")) {
-//        
-//            return 1249;
-//        }
-//
-//        return Integer.parseInt(firstByteString + secondByteString + thirdByteString + fourthByteString, 16);
-//    }
     
     private int readTotalLength(SocketChannel clntChan, int firstByte) throws IOException {
     	
@@ -207,16 +172,10 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
             receivedByte =  clntChan.read(readBuffer);
     	}
     	
-        String firstByteString = Util.intToHexStringWith0(firstByte);
-        String secondByteString = Util.intToHexStringWith0(readBuffer.get(0));
-        String thirdByteString = Util.intToHexStringWith0(readBuffer.get(1));
-        String fourthByteString = Util.intToHexStringWith0(readBuffer.get(2));
-
-        //TODO correct this
-        if(fourthByteString.equals("FFFFFFE1")) {
-        
-            return 1249;
-        }
+        String firstByteString = Util.intToHexStringWith0(firstByte & 0xff);
+        String secondByteString = Util.intToHexStringWith0(readBuffer.get(0) & 0xff);
+        String thirdByteString = Util.intToHexStringWith0(readBuffer.get(1) & 0xff);
+        String fourthByteString = Util.intToHexStringWith0(readBuffer.get(2) & 0xff);
 
         return Integer.parseInt(firstByteString + secondByteString + thirdByteString + fourthByteString, 16);
     }
