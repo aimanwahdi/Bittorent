@@ -99,6 +99,9 @@ public class Client {
 
             try {
                 if (selector.select(300) == 0) { // returns # of ready chans
+                    LOG.debug("No Channel ready");
+                    // TODO Experimental we enter this only in the end to stop while
+                    piecesMissing = false;
                     continue;
                 }
             } catch (IOException ioe) {
@@ -120,7 +123,9 @@ public class Client {
                     if (key.isWritable()) {
                         LOG.debug("Writable key");
                         try {
-                            this.receivedMsg(this.coderToWire, this.coderFromWire, key);
+                            if (!this.receivedMsg(this.coderToWire, this.coderFromWire, key)) {
+                                this.closeConnection((SocketChannel) key.channel());
+                            }
                         } catch (IOException ioe) {
                             LOG.error("Error handling client: " + ioe.getMessage());
                         }
@@ -132,7 +137,6 @@ public class Client {
                 keyIter.remove();
             }
         }
-        this.closeConnection();
     }
 
     private void createSelector() throws IOException {
@@ -186,7 +190,7 @@ public class Client {
         Object msgReceived = coderFromWire.fromWire(key);
 
         if (msgReceived == null) {
-            LOG.error("Message received is null");
+            LOG.error("Message received is null, closing channel");
             return false;
         }
 
@@ -214,10 +218,15 @@ public class Client {
                 // get the next requested piece and send the request message for it
                 int nextPiece = this.pieceManager.nextPieceToRequest(clntChan.socket());
                 LOG.debug("Next piece to be requested " + nextPiece);
-                Request.sendMessageForIndex(nextPiece, Torrent.numberOfPartPerPiece, clntChan);
-                LOG.debug("Send request message to " + clntChan + " for piece " + nextPiece);
-                // set this piece as requested
-                this.pieceManager.requestSent(nextPiece);
+                if (nextPiece != -1) {
+                    // TODO refactor request sending to support only last piece missing
+                    Request.sendMessageForIndex(nextPiece, Torrent.numberOfPartPerPiece, clntChan);
+                    LOG.debug("Request message sent for " + nextPiece + " to client " + clntChan);
+                    // set this piece as requested
+                    this.pieceManager.requestSent(nextPiece);
+                } else if (!this.pieceManager.getDownloaded().contains(false)) {
+                    this.piecesMissing = false;
+                }
                 break;
             case Simple.INTERESTED:
                 Simple interested = (Simple) msgReceived;
@@ -375,13 +384,13 @@ public class Client {
         }
     }
 
-    private void closeConnection() throws IOException {
+    private void closeConnection(SocketChannel clntChan) throws IOException {
         // end communication with all clients
-        for (SocketChannel clntChan : this.otherClientsChannels) {
+        if (!isSeeding) {
             Simple.sendMessage(Simple.NOTINTERESTED, clntChan);
-            clntChan.close();
         }
-        LOG.info("Connection closed");
+        LOG.info("Closing connection with channel" + clntChan);
+        clntChan.close();
     }
 
 }

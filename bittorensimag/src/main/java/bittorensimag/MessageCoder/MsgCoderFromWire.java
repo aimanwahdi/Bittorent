@@ -54,17 +54,18 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
     public Object fromWire(SelectionKey key) throws IOException {
         SocketChannel clntChan = (SocketChannel) key.channel();
 
-        LOG.debug("created channel " + clntChan);
+        // LOG.debug("created channel " + clntChan);
 
         ByteBuffer firstByteBuffer = ByteBuffer.allocate(1);
         int firstByte = 0;
 
         long startTime = System.currentTimeMillis(); // fetch starting time
 
-        while (firstByteBuffer.remaining() != 0 && (System.currentTimeMillis() - startTime) < 10000) {
+        while (firstByteBuffer.remaining() != 0 && firstByte != -1
+                && (System.currentTimeMillis() - startTime) < 10000) {
             firstByte = clntChan.read(firstByteBuffer);
         }
-        LOG.debug("firstByte " + firstByteBuffer.get(0));
+        // LOG.debug("firstByte " + firstByteBuffer.get(0));
 
         if (firstByte == 0 && (System.currentTimeMillis() - startTime) >= 10000) {
             LOG.debug("no reponse");
@@ -95,25 +96,25 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
             byte[] extensionBytes = this.readLength(clntChan, 8);
             long extensionBytesLong = Long.parseLong(Util.bytesToHex(extensionBytes));
 
-            LOG.debug("extensionBytesLong " + extensionBytesLong);
+            // LOG.debug("extensionBytesLong " + extensionBytesLong);
 
             // reading sha1 hash
             byte[] sha1HashBytes = this.readLength(clntChan, 20);
             String sha1Hash = Util.bytesToHex(sha1HashBytes);
 
-            LOG.debug("sha1Hash " + sha1Hash);
+            // LOG.debug("sha1Hash " + sha1Hash);
 
             // reading peer_id
             byte[] peerId = this.readLength(clntChan, 20);
 
-            LOG.debug("peerId " + peerId);
+            // LOG.debug("peerId " + peerId);
 
             return new Handshake(sha1Hash, peerId, extensionBytesLong);
         } else {
             // read three last bytes of length
             int totalLength = this.readTotalLength(clntChan, firstByte);
 
-            LOG.debug("totalLength " + totalLength);
+            // LOG.debug("totalLength " + totalLength);
 
             if (totalLength == 0) {
                 return null;
@@ -165,7 +166,7 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
         ByteBuffer readBuffer = ByteBuffer.allocate(3);
         int receivedByte = 0;
 
-        while (readBuffer.remaining() != 0) {
+        while (readBuffer.remaining() != 0 && receivedByte != -1) {
             receivedByte = clntChan.read(readBuffer);
         }
 
