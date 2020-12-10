@@ -4,6 +4,8 @@ echo "Fermeture des programmes"
 # On récupère le nombre de clients transmissions actif (dernière ligne enlevée car c'est le grep)
 COUNT=$(ps x | grep transmission-daemon | head -n -1 | wc -l)
 
+fileFolder=$HOME/Downloads
+
 # On boucle sur les clients
 for line in $(seq 1 $COUNT);
 do
@@ -13,6 +15,7 @@ do
     echo "Suppression des torrents..."
     transmission-remote $PORT -t all -r
     sleep 1
+    rm -rf $fileFolder/transmission*
 done
 
 # On netttoie les anciennes instances de transmission-daemon et wireshark 

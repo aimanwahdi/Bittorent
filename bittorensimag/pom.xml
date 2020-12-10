@@ -198,7 +198,7 @@
           <execution>
             <id>start-seeders</id>
             <configuration>
-              <executable>./src/test/script/multi-transmission.sh</executable>
+              <executable>./src/test/script/multi-seeders.sh</executable>
             </configuration>
             <phase>compile</phase>
             <goals>
