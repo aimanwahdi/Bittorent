@@ -97,6 +97,13 @@ public class Client {
         while (piecesMissing) { // Run while reading processing available I/O operations
             // Wait for some channel to be ready (or timeout)
 
+            // Print stats if needed
+            if (LOG.isInfoEnabled()) {
+                StatPrinter.clearScreen();
+                StatPrinter.getLoadAverage();
+                StatPrinter.getMemoryConsumption();
+            }
+
             try {
                 if (selector.select(300) == 0) { // returns # of ready chans
                     LOG.debug("No Channel ready");
