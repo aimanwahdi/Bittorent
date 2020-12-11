@@ -160,7 +160,7 @@ public class StatGetter {
             System.out.flush();
 
         } catch (IOException | InterruptedException ex) {
-            // TODO
+            LOG.error("Error trying to clear screen");
         }
     }
 }

@@ -29,6 +29,10 @@ public class Client {
     public final static String IP = "127.0.0.1";
     public final static int PORT = 6881;
 
+    private final int KB = 1024;
+    private final int MB = 1024 * 1024;
+    private final int GB = 1024 * 1024 * 1024;
+
     private final Torrent torrent;
     private final Tracker tracker;
     private final MsgCoderToWire coderToWire;
@@ -100,11 +104,27 @@ public class Client {
     }
 
     private void startProgressBars() {
+        int unitSize = 1;
+        String unitName = "";
+        if (Torrent.totalSize < 1 * MB) {
+            unitSize = KB;
+            unitName = "KB";
+        } else if (Torrent.totalSize < 1 * GB) {
+            unitSize = MB;
+            unitName = "MB";
+        } else {
+            unitSize = GB;
+            unitName = "GB";
+        }
+
         // TODO make it depend on Bitfield not totalsize for resume
-        try (ProgressBar pbTorrent = new ProgressBar(this.outputFile.getName(), Torrent.totalSize);
-                ProgressBar pbCPU = new ProgressBarBuilder().setTaskName("CPU").setInitialMax(100).build();
+        try (ProgressBar pbTorrent = new ProgressBarBuilder().setTaskName(this.outputFile.getName())
+                .setInitialMax(Torrent.totalSize).setUnit(unitName, unitSize).build();
+                ProgressBar pbCPU = new ProgressBarBuilder().setTaskName("CPU").setInitialMax(100)
+                        .setStyle(ProgressBarStyle.UNICODE_BLOCK).build();
                 ProgressBar pbMemory = new ProgressBarBuilder().setTaskName("MEMORY")
-                        .setInitialMax((long) StatGetter.getTotalMemory()).build()) {
+                        .setInitialMax((long) StatGetter.getTotalMemory()).setStyle(ProgressBarStyle.UNICODE_BLOCK)
+                        .build()) {
 
             // Use ProgressBar("Test", 100, ProgressBarStyle.ASCII) if you want ASCII output
 
@@ -114,6 +134,8 @@ public class Client {
             } else {
                 pbTorrent.setExtraMessage("Receiving...");
             }
+            // Mesure usage at the beggining
+            this.mesureUsage(pbCPU, pbMemory);
             this.startCommunication(pbTorrent, pbCPU, pbMemory);
         }
 
@@ -274,7 +296,7 @@ public class Client {
             case Have.HAVE_TYPE:
                 Have have = (Have) msgReceived;
                 LOG.debug("Have received for index " + have.getIndex() + " from client " + clntChan);
-                // TODO stocker client dans map pour suivre quel client a quelle pièce
+                // TODO stocker have client dans map pour suivre quel client a quelle pièce
                 break;
             case Bitfield.BITFIELD_TYPE:
                 bitfieldReceived = (Bitfield) msgReceived;
@@ -366,7 +388,6 @@ public class Client {
         Piece.sendMessage(pieceLength + Piece.HEADER_LENGTH, pieceIndex, beginOffset, partData, clntChan);
     }
 
-    // TODO send new request if fail for a part
     private void handlePieceMsg(Piece piece, SocketChannel clntChan, ProgressBar pbTorrent) throws IOException {
         int pieceIndex = piece.getPieceIndex();
         int beginOffset = piece.getBeginOffset();
