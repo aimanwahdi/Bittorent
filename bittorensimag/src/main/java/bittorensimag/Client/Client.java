@@ -21,6 +21,8 @@ import bittorensimag.Messages.*;
 import bittorensimag.Torrent.*;
 import bittorensimag.Util.PieceManager;
 
+import me.tongfei.progressbar.*;
+
 public class Client {
     private static final Logger LOG = Logger.getLogger(Client.class);
 
@@ -87,22 +89,44 @@ public class Client {
         }
     }
 
-    public void startCommunication() throws IOException {
+    public void startProgress() throws IOException {
+
+        if (LOG.isInfoEnabled()) {
+            this.startProgressBars();
+        } else {
+            this.startCommunication(null, null, null);
+        }
+
+    }
+
+    private void startProgressBars() {
+        // TODO make it depend on Bitfield not totalsize for resume
+        try (ProgressBar pbTorrent = new ProgressBar(this.outputFile.getName(), Torrent.totalSize);
+                ProgressBar pbCPU = new ProgressBarBuilder().setTaskName("CPU").setInitialMax(100).build();
+                ProgressBar pbMemory = new ProgressBarBuilder().setTaskName("MEMORY")
+                        .setInitialMax((long) StatGetter.getTotalMemory()).build()) {
+
+            // Use ProgressBar("Test", 100, ProgressBarStyle.ASCII) if you want ASCII output
+
+            // Set extra message to display at the end of the bar
+            if (isSeeding) {
+                pbTorrent.setExtraMessage("Sending...");
+            } else {
+                pbTorrent.setExtraMessage("Receiving...");
+            }
+            this.startCommunication(pbTorrent, pbCPU, pbMemory);
+        }
+
+    } // progress bar stops automatically after completion of try-with-resource block
+
+    private void startCommunication(ProgressBar pbTorrent, ProgressBar pbCPU, ProgressBar pbMemory) {
         LOG.debug("Starting communication with the peer");
         // send handshakes to all clients
         for (SocketChannel clntChan : this.otherClientsChannels) {
             Handshake.sendMessage(this.torrent.info_hash, clntChan);
         }
-
         while (piecesMissing) { // Run while reading processing available I/O operations
             // Wait for some channel to be ready (or timeout)
-
-            // Print stats if needed
-            if (LOG.isInfoEnabled()) {
-                StatPrinter.clearScreen();
-                StatPrinter.getLoadAverage();
-                StatPrinter.getMemoryConsumption();
-            }
 
             try {
                 if (selector.select(300) == 0) { // returns # of ready chans
@@ -130,7 +154,8 @@ public class Client {
                     if (key.isWritable()) {
                         LOG.debug("Writable key");
                         try {
-                            if (!this.receivedMsg(this.coderToWire, this.coderFromWire, key)) {
+                            if (!this.receivedMsg(this.coderToWire, this.coderFromWire, key, pbTorrent, pbCPU,
+                                    pbMemory)) {
                                 this.closeConnection((SocketChannel) key.channel());
                             }
                         } catch (IOException ioe) {
@@ -189,7 +214,8 @@ public class Client {
         }
     }
 
-    private boolean receivedMsg(MsgCoderToWire coderToWire, MsgCoderFromWire coderFromWire, SelectionKey key)
+    private boolean receivedMsg(MsgCoderToWire coderToWire, MsgCoderFromWire coderFromWire, SelectionKey key,
+            ProgressBar pbTorrent, ProgressBar pbCPU, ProgressBar pbMemory)
             throws IOException {
 
         SocketChannel clntChan = (SocketChannel) key.channel();
@@ -293,7 +319,10 @@ public class Client {
             case Piece.PIECE_TYPE:
                 Piece piece = (Piece) msgReceived;
                 LOG.debug("Piece message received for index " + piece.getPieceIndex() + " from client " + clntChan);
-                this.handlePieceMsg(piece, clntChan);
+                this.handlePieceMsg(piece, clntChan, pbTorrent);
+                if (LOG.isInfoEnabled()) {
+                    this.mesureUsage(pbCPU, pbMemory);
+                }
                 break;
             // TODO if implementing endgame
             // case Cancel.CANCEL_TYPE:
@@ -306,6 +335,11 @@ public class Client {
         }
 
         return piecesMissing;
+    }
+
+    private void mesureUsage(ProgressBar pbCPU, ProgressBar pbMemory) {
+        pbCPU.stepTo((long) StatGetter.getLoadAverage());
+        pbMemory.stepTo((long) StatGetter.getUsedMemory());
     }
 
     private boolean handleHandshake(Handshake handshake, SelectionKey key) throws IOException {
@@ -333,7 +367,7 @@ public class Client {
     }
 
     // TODO send new request if fail for a part
-    private void handlePieceMsg(Piece piece, SocketChannel clntChan) throws IOException {
+    private void handlePieceMsg(Piece piece, SocketChannel clntChan, ProgressBar pbTorrent) throws IOException {
         int pieceIndex = piece.getPieceIndex();
         int beginOffset = piece.getBeginOffset();
         byte[] data = piece.getData();
@@ -350,6 +384,9 @@ public class Client {
                     Have.sendMessage(pieceIndex, clntChan);
                     // set this piece downloaded
                     this.pieceManager.pieceDownloaded(pieceIndex);
+                    if (LOG.isInfoEnabled()) {
+                        pbTorrent.stepBy(Torrent.pieces_length);
+                    }
                     // search for next piece to be requested
                     LOG.debug("nextPiece to be requested " + nextPiece);
                     // only request if we still lack pieces
@@ -374,6 +411,9 @@ public class Client {
                     int nextPiece = this.pieceManager.nextPieceToRequest(clntChan.socket());
                     this.pieceManager.pieceDownloaded(pieceIndex);
                     Have.sendMessage(pieceIndex, clntChan);
+                    if (LOG.isInfoEnabled()) {
+                        pbTorrent.stepBy(Torrent.lastPieceLength);
+                    }
                     // search for next piece to be requested
                     LOG.debug("nextPiece to be requested " + nextPiece);
                     // only request if we still lack pieces

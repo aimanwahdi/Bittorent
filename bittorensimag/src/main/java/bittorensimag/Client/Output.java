@@ -20,9 +20,16 @@ public class Output {
 	private FileInputStream inFile;
 	private FileChannel inChannel;
 
+	private String name;
+
 	public Output(String nomFichier, String destination) throws FileNotFoundException {
 		super();
 		this.f = new File(destination + nomFichier);
+		this.name = nomFichier;
+	}
+
+	public String getName() {
+		return name;
 	}
 
 	public void generateFile(byte[] data) {

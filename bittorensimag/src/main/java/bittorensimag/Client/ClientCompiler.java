@@ -57,7 +57,7 @@ public class ClientCompiler {
 
         Client client = new Client(torrent, tracker, new MsgCoderToWire(), new MsgCoderFromWire(), destinationFolder);
 
-        client.startCommunication();
+        client.startProgress();
         return true;
     }
 }
