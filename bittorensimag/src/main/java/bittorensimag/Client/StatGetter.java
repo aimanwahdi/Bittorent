@@ -11,18 +11,19 @@ import com.sun.management.OperatingSystemMXBean;
 
 import org.apache.log4j.Logger;
 
-public class StatPrinter {
-    private static final Logger LOG = Logger.getLogger(StatPrinter.class);
+public class StatGetter {
+    private static final Logger LOG = Logger.getLogger(StatGetter.class);
+    private static final int KB = 1024;
     private static final int MB = 1024 * 1024;
     private static final int GB = 1024 * 1024 * 1024;
 
-    public static double getMemoryConsumption() {
+    public static double getUsedMemory() {
         double totalMemory = 0, usedMemory = 0;
 
         if (isWindows()) {
             OperatingSystemMXBean osBean = (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
-            totalMemory = (double) (osBean.getTotalPhysicalMemorySize() / GB);
-            usedMemory = (double) ((totalMemory - (osBean.getFreePhysicalMemorySize() / GB)));
+            totalMemory = (double) (osBean.getTotalPhysicalMemorySize() / MB);
+            usedMemory = (double) ((totalMemory - (osBean.getFreePhysicalMemorySize() / MB)));
         } else {
             String fName = "/proc/meminfo";
             try {
@@ -58,12 +59,12 @@ public class StatPrinter {
                     long kReclamable = scanner.nextLong();
                     long slab = scanner.nextLong();
 
-                    totalMemory = memTotal / MB;
-                    usedMemory = (memTotal - (memFree + buffers + cached + slab)) / MB;
+                    totalMemory = memTotal / KB;
+                    usedMemory = (memTotal - (memFree + buffers + cached + slab)) / KB;
 
                     // Truncate doubles to 3 digits
-                    totalMemory = StatPrinter.truncate(totalMemory, 3);
-                    usedMemory = StatPrinter.truncate(usedMemory, 3);
+                    totalMemory = StatGetter.truncate(totalMemory, 3);
+                    usedMemory = StatGetter.truncate(usedMemory, 3);
                 } catch (Exception ex) {
                     LOG.error("Could not calculate memory usage.", ex);
                 } finally {
@@ -74,16 +75,51 @@ public class StatPrinter {
             }
         }
 
-        if (LOG.isInfoEnabled()) {
-            LOG.info("[Total Memory Used] " + usedMemory + " / " + totalMemory + " GB");
+        // if (LOG.isInfoEnabled()) {
+        // LOG.info("[Total Memory Used] " + usedMemory + " / " + totalMemory + " GB");
+        // }
+        // double memoryPercent = (usedMemory / totalMemory) * 100;
+        // // truncate to 3 digits
+        // double truncatedMemoryPercent = StatGetter.truncate(memoryPercent, 3);
+        // if (LOG.isInfoEnabled()) {
+        // LOG.info("[Total Memory Used] " + truncatedMemoryPercent + " %");
+        // }
+        return usedMemory;
+    }
+
+    public static double getTotalMemory() {
+        double totalMemory = 0;
+
+        if (isWindows()) {
+            OperatingSystemMXBean osBean = (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
+            totalMemory = (double) (osBean.getTotalPhysicalMemorySize() / MB);
+        } else {
+            String fName = "/proc/meminfo";
+            try {
+                FileInputStream f = new FileInputStream(fName);
+
+                /*
+                 * $ cat /proc/meminfo MemTotal: 2056964 kB MemFree: 16716 kB Buffers: 9776 kB
+                 * Cached: 127220 kB
+                 */
+                Scanner scanner = new Scanner(f).useDelimiter("\\D+");
+                try {
+                    long memTotal = scanner.nextLong();
+
+                    totalMemory = memTotal / KB;
+
+                    // Truncate doubles to 3 digits
+                    totalMemory = StatGetter.truncate(totalMemory, 3);
+                } catch (Exception ex) {
+                    LOG.error("Could not get total memory", ex);
+                } finally {
+                    scanner.close();
+                }
+            } catch (IOException ex) {
+                LOG.error("Could not get total memory", ex);
+            }
         }
-        double memoryPercent = (usedMemory / totalMemory) * 100;
-        // truncate to 3 digits
-        double truncatedMemoryPercent = StatPrinter.truncate(memoryPercent, 3);
-        if (LOG.isInfoEnabled()) {
-            LOG.info("[Total Memory Used] " + truncatedMemoryPercent + " %");
-        }
-        return memoryPercent;
+        return totalMemory;
     }
 
     private static double truncate(double toBeTruncated, int digits) {
@@ -101,9 +137,10 @@ public class StatPrinter {
         // }
 
         double loadAvgPercentage = (loadAvg / cores) * 100;
-        if (LOG.isInfoEnabled()) {
-            LOG.info("[CPU Percentage Load] " + loadAvgPercentage + " % on " + cores + " cores");
-        }
+        // if (LOG.isInfoEnabled()) {
+        // LOG.info("[CPU Percentage Load] " + loadAvgPercentage + " % on " + cores + "
+        // cores");
+        // }
         return loadAvgPercentage;
     }
 
@@ -120,6 +157,7 @@ public class StatPrinter {
             else
                 // Runtime.getRuntime().exec("clear");
                 System.out.print("\033[H\033[2J");
+            System.out.flush();
 
         } catch (IOException | InterruptedException ex) {
             // TODO
