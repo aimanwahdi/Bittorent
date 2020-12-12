@@ -20,8 +20,8 @@
 # |	│           ├── clean.sh
 # |	│           └── multi-transmission.sh
 
-torrent=./src/test/exampleTorrents/Aigle.jpg.torrent
-file=./src/test/exampleFiles/Aigle.jpg
+torrent=./src/test/exampleTorrents/Big_Buck_Bunny_1080p.avi.torrent
+file=./src/test/exampleFiles/Big_Buck_Bunny_1080p.avi
 fileFolder=$HOME/Downloads
 
 # Start of opentracker
@@ -31,7 +31,7 @@ sleep 2
 
 # On lance wireshark sur loopback en affichant bittorrent
 echo "Lancement de wireshark"
-wireshark -i lo -Y bittorrent -k -S -l </dev/null &>/dev/null &
+wireshark -i lo -Y bittorrent -w $fileFolder/bittorensimag -k -S -l </dev/null &>/dev/null &
 sleep 1
 
 #lancer plusieurs seeders en parallèle (ici 3)

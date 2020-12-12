@@ -6,6 +6,9 @@ COUNT=$(ps x | grep transmission-daemon | head -n -1 | wc -l)
 
 fileFolder=$HOME/Downloads
 
+# delete capture file
+rm $fileFolder/bittorensimag
+
 # On boucle sur les clients
 for line in $(seq 1 $COUNT);
 do
