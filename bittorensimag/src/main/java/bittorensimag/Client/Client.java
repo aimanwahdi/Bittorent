@@ -21,7 +21,7 @@ import bittorensimag.Messages.*;
 import bittorensimag.Torrent.*;
 import bittorensimag.Util.PieceManager;
 
-import me.tongfei.progressbar.*;
+import bittorensimag.ProgressBar.*;
 
 public class Client {
     private static final Logger LOG = Logger.getLogger(Client.class);
