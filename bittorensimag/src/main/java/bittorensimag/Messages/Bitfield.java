@@ -52,11 +52,9 @@ public class Bitfield extends Msg {
 		Bitfield.ourBitfieldData[index] = status;
 	}
 
-	public static void sendMessage(byte[] dataBitfield, SelectionKey key) throws IOException {
+	public static void sendMessage(byte[] dataBitfield, SocketChannel clntChan) throws IOException {
 		MsgCoderToWire coderToWire = new MsgCoderToWire();
 		Bitfield msgBitfield = new Bitfield(dataBitfield);
-		SocketChannel clntChan = (SocketChannel) key.channel();
-
 		try {
 			ByteBuffer writeBuf = ByteBuffer.wrap(coderToWire.toWire(msgBitfield));
 

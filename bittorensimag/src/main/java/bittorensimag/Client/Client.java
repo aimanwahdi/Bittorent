@@ -9,6 +9,7 @@ import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
@@ -33,6 +34,9 @@ public class Client {
     private final int MB = 1024 * 1024;
     private final int GB = 1024 * 1024 * 1024;
 
+    private int unitSize = 1;
+    private String unitName = "";
+
     private final Torrent torrent;
     private final Tracker tracker;
     private final MsgCoderToWire coderToWire;
@@ -44,11 +48,15 @@ public class Client {
     private Bitfield bitfieldReceived;
     private ArrayList<Integer> piecesDispo;
 
+    private HashMap<SocketChannel, String> socketToPeerIdMap = new HashMap<SocketChannel, String>();
+
     private Output outputFile;
 
     private PieceManager pieceManager;
 
     private boolean piecesMissing = true;
+
+    private ProgressBarBuilder progressBarBuilder;
 
     public Client(Torrent torrent, Tracker tracker, MsgCoderToWire coderToWire, MsgCoderFromWire coderFromWire,
             File destinationFolder) throws IOException {
@@ -104,22 +112,8 @@ public class Client {
     }
 
     private void startProgressBars() {
-        int unitSize = 1;
-        String unitName = "";
-        if (Torrent.totalSize < 1 * MB) {
-            unitSize = KB;
-            unitName = "KB";
-        } else if (Torrent.totalSize < 1 * GB) {
-            unitSize = MB;
-            unitName = "MB";
-        } else {
-            unitSize = GB;
-            unitName = "GB";
-        }
-
-        // TODO make it depend on Bitfield not totalsize for resume
-        try (ProgressBar pbTorrent = new ProgressBarBuilder().setTaskName(this.outputFile.getName())
-                .setInitialMax(Torrent.totalSize).setUnit(unitName, unitSize).build();
+        
+        try (ProgressBarArray torrentProgressBars = this.createTorrentProgress();
                 ProgressBar pbCPU = new ProgressBarBuilder().setTaskName("CPU").setInitialMax(100)
                         .setStyle(ProgressBarStyle.UNICODE_BLOCK).build();
                 ProgressBar pbMemory = new ProgressBarBuilder().setTaskName("MEMORY")
@@ -130,18 +124,45 @@ public class Client {
 
             // Set extra message to display at the end of the bar
             if (isSeeding) {
-                pbTorrent.setExtraMessage("Sending...");
+                torrentProgressBars.setExtraMessage("Sending...");
             } else {
-                pbTorrent.setExtraMessage("Receiving...");
+                torrentProgressBars.setExtraMessage("Receiving...");
             }
             // Mesure usage at the beggining
             this.mesureUsage(pbCPU, pbMemory);
-            this.startCommunication(pbTorrent, pbCPU, pbMemory);
+            this.startCommunication(torrentProgressBars, pbCPU, pbMemory);
         }
 
     } // progress bar stops automatically after completion of try-with-resource block
 
-    private void startCommunication(ProgressBar pbTorrent, ProgressBar pbCPU, ProgressBar pbMemory) {
+    private ProgressBarArray createTorrentProgress() {
+
+        if (Torrent.totalSize < 1 * MB) {
+            this.unitSize = KB;
+            this.unitName = "KB";
+        } else if (Torrent.totalSize < 1 * GB) {
+            this.unitSize = MB;
+            this.unitName = "MB";
+        } else {
+            this.unitSize = GB;
+            this.unitName = "GB";
+        }
+
+        ArrayList<String> taskNamesArray = new ArrayList<String>();
+        if (isSeeding) {
+            // Do nothing wait for handshake received
+        } else {
+            taskNamesArray.add(this.outputFile.getName());
+        }
+        // TODO make it depend on Bitfield not totalsize for resume
+        this.progressBarBuilder = new ProgressBarBuilder().setInitialMax(Torrent.totalSize).setUnit(this.unitName,
+                this.unitSize);
+        ProgressBarArray pbArray = new ProgressBarArrayBuilder().setTaskName(taskNamesArray)
+                .setInitialMax(Torrent.totalSize).setUnit(this.unitName, this.unitSize).build();
+        return pbArray;
+    }
+
+    private void startCommunication(ProgressBarArray torrentProgressBars, ProgressBar pbCPU, ProgressBar pbMemory) {
         LOG.debug("Starting communication with the peer");
         // send handshakes to all clients
         for (SocketChannel clntChan : this.otherClientsChannels) {
@@ -176,7 +197,9 @@ public class Client {
                     if (key.isWritable()) {
                         LOG.debug("Writable key");
                         try {
-                            if (!this.receivedMsg(this.coderToWire, this.coderFromWire, key, pbTorrent, pbCPU,
+                            SocketChannel clntChan = (SocketChannel) key.channel();
+                            if (!this.receivedMsg(this.coderToWire, this.coderFromWire, clntChan, torrentProgressBars,
+                                    pbCPU,
                                     pbMemory)) {
                                 this.closeConnection((SocketChannel) key.channel());
                             }
@@ -231,28 +254,25 @@ public class Client {
     private void connectToAllClients(Map.Entry<String, ArrayList<Integer>> firstEntry) {
         ArrayList<Integer> portNumbers = firstEntry.getValue();
         for (int port : portNumbers) {
-            LOG.debug("port : " + port);
+            LOG.debug("Connecting to localhost with port : " + port);
             this.createSocket(firstEntry.getKey(), port);
         }
     }
 
-    private boolean receivedMsg(MsgCoderToWire coderToWire, MsgCoderFromWire coderFromWire, SelectionKey key,
-            ProgressBar pbTorrent, ProgressBar pbCPU, ProgressBar pbMemory)
-            throws IOException {
+    private boolean receivedMsg(MsgCoderToWire coderToWire, MsgCoderFromWire coderFromWire, SocketChannel clntChan,
+            ProgressBarArray torrentProgressBars, ProgressBar pbCPU, ProgressBar pbMemory) throws IOException {
 
-        SocketChannel clntChan = (SocketChannel) key.channel();
-
-        Object msgReceived = coderFromWire.fromWire(key);
+        Object msgReceived = coderFromWire.fromWire(clntChan);
 
         if (msgReceived == null) {
-            LOG.error("Message received is null, closing channel");
+            LOG.debug("Message received is null, closing channel");
             return false;
         }
 
         if (msgReceived instanceof Handshake) {
-            LOG.debug("received handshake from key " + key);
+            LOG.debug("received handshake from client " + clntChan);
             Handshake handshake = (Handshake) msgReceived;
-            return this.handleHandshake(handshake, key);
+            return this.handleHandshake(handshake, clntChan, torrentProgressBars);
         }
 
         // cast to message to get type
@@ -296,38 +316,15 @@ public class Client {
             case Have.HAVE_TYPE:
                 Have have = (Have) msgReceived;
                 LOG.debug("Have received for index " + have.getIndex() + " from client " + clntChan);
+                if (LOG.isInfoEnabled()) {
+                    this.increaseClientProgress(have.getIndex(), clntChan, torrentProgressBars);
+                    this.mesureUsage(pbCPU, pbMemory);
+                }
                 // TODO stocker have client dans map pour suivre quel client a quelle pièce
                 break;
             case Bitfield.BITFIELD_TYPE:
                 bitfieldReceived = (Bitfield) msgReceived;
-
-                // Override almost full bitfield with full one (lazy bitfield)
-                if (bitfieldReceived.getBitfieldDATA() == Bitfield.fakeFullBitfield) {
-                    LOG.debug("Received full lazy bitfield, override to full");
-                    bitfieldReceived.setBitfieldDATA(Bitfield.fullBitfield);
-                }
-
-                // create the list of available pieces for this client based on its bietfield
-                piecesDispo = Bitfield.convertBitfieldToList(bitfieldReceived.getBitfieldDATA(),
-                        Torrent.numberOfPieces);
-
-                // add the client represented by its socket and all its pieces to PieceMap
-                for (int pieceIndex : piecesDispo) {
-                    if (!this.pieceManager.getPieceMap().containsKey(pieceIndex)) {
-                        ArrayList<Socket> peers = new ArrayList<Socket>();
-                        peers.add(clntChan.socket());
-                        this.pieceManager.getPieceMap().put(pieceIndex, peers);
-                    } else {
-                        this.pieceManager.getPieceMap().get(pieceIndex).add(clntChan.socket());
-                    }
-                }
-
-                // Print the peers with their available pieces
-                // for (int name: this.pieceManager.getPieceMap().keySet()){
-                // String value = this.pieceManager.getPieceMap().get(name).toString();
-                // LOG.debug(name + " " + value);
-                // }
-
+                this.handleBitfield(bitfieldReceived, clntChan);
                 if (!isSeeding) {
                     Simple.sendMessage(Simple.INTERESTED, clntChan);
                     LOG.debug("Send interested message to " + clntChan);
@@ -341,7 +338,7 @@ public class Client {
             case Piece.PIECE_TYPE:
                 Piece piece = (Piece) msgReceived;
                 LOG.debug("Piece message received for index " + piece.getPieceIndex() + " from client " + clntChan);
-                this.handlePieceMsg(piece, clntChan, pbTorrent);
+                this.handlePieceMsg(piece, clntChan, torrentProgressBars);
                 if (LOG.isInfoEnabled()) {
                     this.mesureUsage(pbCPU, pbMemory);
                 }
@@ -359,21 +356,59 @@ public class Client {
         return piecesMissing;
     }
 
+    private void handleBitfield(Bitfield bitfieldReceived2, SocketChannel clntChan) {
+        // Override almost full bitfield with full one (lazy bitfield)
+        if (bitfieldReceived.getBitfieldDATA() == Bitfield.fakeFullBitfield) {
+            LOG.debug("Received full lazy bitfield, override to full");
+            bitfieldReceived.setBitfieldDATA(Bitfield.fullBitfield);
+        }
+
+        // create the list of available pieces for this client based on its bietfield
+        piecesDispo = Bitfield.convertBitfieldToList(bitfieldReceived.getBitfieldDATA(), Torrent.numberOfPieces);
+
+        // add the client represented by its socket and all its pieces to PieceMap
+        for (int pieceIndex : piecesDispo) {
+            if (!this.pieceManager.getPieceMap().containsKey(pieceIndex)) {
+                ArrayList<Socket> peers = new ArrayList<Socket>();
+                peers.add(clntChan.socket());
+                this.pieceManager.getPieceMap().put(pieceIndex, peers);
+            } else {
+                this.pieceManager.getPieceMap().get(pieceIndex).add(clntChan.socket());
+            }
+        }
+
+        // Print the peers with their available pieces
+        // for (int name: this.pieceManager.getPieceMap().keySet()){
+        // String value = this.pieceManager.getPieceMap().get(name).toString();
+        // LOG.debug(name + " " + value);
+        // }
+    }
+
+    private void increaseClientProgress(int index, SocketChannel clntChan, ProgressBarArray torrentProgressBars) {
+        if (index == Torrent.numberOfPieces - 1) {
+            torrentProgressBars.getByName(this.socketToPeerIdMap.get(clntChan)).stepBy(Torrent.lastPieceLength);
+        } else {
+            torrentProgressBars.getByName(this.socketToPeerIdMap.get(clntChan)).stepBy(Torrent.pieces_length);
+        }
+    }
+
     private void mesureUsage(ProgressBar pbCPU, ProgressBar pbMemory) {
         pbCPU.stepTo((long) StatGetter.getLoadAverage());
         pbMemory.stepTo((long) StatGetter.getUsedMemory());
     }
 
-    private boolean handleHandshake(Handshake handshake, SelectionKey key) throws IOException {
+    private boolean handleHandshake(Handshake handshake, SocketChannel clntChan, ProgressBarArray torrentProgressBars)
+            throws IOException {
         LOG.debug("Handling Handshake message");
         if (handshake.getSha1Hash().compareTo(this.torrent.info_hash) != 0) {
             LOG.error("Sha1 hash received different from torrent file");
             return false;
         }
-        // who send handshake first ?
-        // Handshake.sendMessage(this.torrent.info_hash, out);
+        String peerId = new String(handshake.getPeerId());
+        this.socketToPeerIdMap.put(clntChan, peerId);
+        torrentProgressBars.add(this.progressBarBuilder, peerId);
 
-        Bitfield.sendMessage(Bitfield.ourBitfieldData, key);
+        Bitfield.sendMessage(Bitfield.ourBitfieldData, clntChan);
         return true;
     }
 
@@ -386,9 +421,12 @@ public class Client {
 
         LOG.debug("Sending pieces for" + clntChan);
         Piece.sendMessage(pieceLength + Piece.HEADER_LENGTH, pieceIndex, beginOffset, partData, clntChan);
+        // Not reliable in case one piece is lost but most beautiful, clients does not
+        // send all the have
     }
 
-    private void handlePieceMsg(Piece piece, SocketChannel clntChan, ProgressBar pbTorrent) throws IOException {
+    private void handlePieceMsg(Piece piece, SocketChannel clntChan, ProgressBarArray torrentProgressBars)
+            throws IOException {
         int pieceIndex = piece.getPieceIndex();
         int beginOffset = piece.getBeginOffset();
         byte[] data = piece.getData();
@@ -406,7 +444,7 @@ public class Client {
                     // set this piece downloaded
                     this.pieceManager.pieceDownloaded(pieceIndex);
                     if (LOG.isInfoEnabled()) {
-                        pbTorrent.stepBy(Torrent.pieces_length);
+                        torrentProgressBars.getByName(clntChan.socket().toString()).stepBy(Torrent.pieces_length);
                     }
                     // search for next piece to be requested
                     LOG.debug("nextPiece to be requested " + nextPiece);
@@ -415,8 +453,7 @@ public class Client {
                         Request.sendMessageForIndex(nextPiece, Torrent.numberOfPartPerPiece, clntChan);
                         LOG.debug("Request message sent for " + nextPiece + " to client " + clntChan);
                         this.pieceManager.requestSent(nextPiece);
-                    }
-                    else if (!this.pieceManager.getDownloaded().contains(false)) {
+                    } else if (!this.pieceManager.getDownloaded().contains(false)) {
                         this.piecesMissing = false;
                     }
 
@@ -433,7 +470,7 @@ public class Client {
                     this.pieceManager.pieceDownloaded(pieceIndex);
                     Have.sendMessage(pieceIndex, clntChan);
                     if (LOG.isInfoEnabled()) {
-                        pbTorrent.stepBy(Torrent.lastPieceLength);
+                        torrentProgressBars.getByName(clntChan.socket().toString()).stepBy(Torrent.lastPieceLength);
                     }
                     // search for next piece to be requested
                     LOG.debug("nextPiece to be requested " + nextPiece);
@@ -457,7 +494,7 @@ public class Client {
         if (!isSeeding) {
             Simple.sendMessage(Simple.NOTINTERESTED, clntChan);
         }
-        LOG.info("Closing connection with channel" + clntChan);
+        LOG.debug("Closing connection with channel" + clntChan);
         clntChan.close();
     }
 

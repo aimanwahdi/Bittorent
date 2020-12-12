@@ -2,7 +2,6 @@ package bittorensimag.MessageCoder;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 
 import org.apache.log4j.Logger;
@@ -51,10 +50,7 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
     }
 
     @Override
-    public Object fromWire(SelectionKey key) throws IOException {
-        SocketChannel clntChan = (SocketChannel) key.channel();
-
-        // LOG.debug("created channel " + clntChan);
+    public Object fromWire(SocketChannel clntChan) throws IOException {
 
         ByteBuffer firstByteBuffer = ByteBuffer.allocate(1);
         int firstByte = 0;
