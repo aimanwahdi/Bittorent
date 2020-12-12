@@ -41,19 +41,23 @@ public class ClientCompiler {
         LOG.debug("Successfully generated GET Request");
         tracker.getRequest(Tracker.EVENT_STARTED);
 
-        // Try each 5 sec to find other peers
-        synchronized (this) {
-            while (!tracker.foundAnotherPeer()) {
-                LOG.warn("There is not another peer please restart other client(s)");
-                try {
-                    this.wait(5000);
-                } catch (InterruptedException e) {
-                    LOG.fatal("Thread got interrupted while waiting " + e.getMessage());
-                }
-                tracker.getRequest(Tracker.EVENT_STARTED);
-            }
+        // // Try each 5 sec to find other peers
+        // synchronized (this) {
+        // while (!tracker.foundAnotherPeer()) {
+        // LOG.warn("There is not another peer please restart other client(s)");
+        // try {
+        // this.wait(5000);
+        // } catch (InterruptedException e) {
+        // LOG.fatal("Thread got interrupted while waiting " + e.getMessage());
+        // }
+        // tracker.getRequest(Tracker.EVENT_STARTED);
+        // }
+        // }
+        if (!tracker.foundAnotherPeer()) {
+            LOG.warn("There is not another peer according to tracker");
+        } else {
+            LOG.info("Found at least one peer for torrent file : " + sourceTorrent.getName());
         }
-        LOG.info("Found another peer for torrent file : " + sourceTorrent.getName());
 
         Client client = new Client(torrent, tracker, new MsgCoderToWire(), new MsgCoderFromWire(), destinationFolder);
 
