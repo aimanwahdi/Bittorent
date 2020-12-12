@@ -12,6 +12,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import java.util.Iterator;
 import java.util.List;
@@ -75,8 +76,12 @@ public class Client {
         this.otherClientsChannels = new ArrayList<SocketChannel>();
         this.createSelector(); // create selector
 
-        Map.Entry<String, ArrayList<Integer>> firstEntry = this.tracker.getPeersMap().entrySet().iterator().next();
-        this.connectToAllClients(firstEntry);
+        try {
+            Map.Entry<String, ArrayList<Integer>> firstEntry = this.tracker.getPeersMap().entrySet().iterator().next();
+            this.connectToAllClients(firstEntry);
+        } catch (Exception e) {
+            LOG.warn("Could not connect to another client, waiting for handshake");
+        }
     }
 
     private void leecherOrSeeder(File destinationFolder) throws IOException {
@@ -103,7 +108,7 @@ public class Client {
 
     public void startProgress() throws IOException {
 
-        if (LOG.isInfoEnabled()) {
+        if (LOG.getLevel() == Level.INFO) {
             this.startProgressBars();
         } else {
             this.startCommunication(null, null, null);
@@ -163,19 +168,18 @@ public class Client {
     }
 
     private void startCommunication(ProgressBarArray torrentProgressBars, ProgressBar pbCPU, ProgressBar pbMemory) {
-        LOG.debug("Starting communication with the peer");
         // send handshakes to all clients
         for (SocketChannel clntChan : this.otherClientsChannels) {
             Handshake.sendMessage(this.torrent.info_hash, clntChan);
         }
-        while (piecesMissing) { // Run while reading processing available I/O operations
+        // TODO go from leecher to seeder when all pieces received
+        while (piecesMissing) {
+            // Run while reading processing available I/O operations
             // Wait for some channel to be ready (or timeout)
 
             try {
                 if (selector.select(300) == 0) { // returns # of ready chans
-                    LOG.debug("No Channel ready");
-                    // TODO Experimental we enter this only in the end to stop while
-                    piecesMissing = false;
+                    // LOG.debug("No Channel ready");
                     continue;
                 }
             } catch (IOException ioe) {
@@ -225,7 +229,7 @@ public class Client {
     }
 
     private void createSocket(String destAddr, int destPort) {
-        LOG.debug("Creration of the socket for " + destAddr + " and port " + destPort);
+        LOG.debug("Creation of the socket for " + destAddr + " and port " + destPort);
 
         // Create listening socket channel for each port and register selector
         try {
@@ -247,7 +251,7 @@ public class Client {
             otherClientsChannels.add(clntChan);
 
         } catch (IOException e) {
-            LOG.fatal("Could not create Socket");
+            LOG.fatal("Could not create Socket, is the client still up ?");
         }
     }
 
@@ -294,8 +298,7 @@ public class Client {
                 int nextPiece = this.pieceManager.nextPieceToRequest(clntChan.socket());
                 LOG.debug("Next piece to be requested " + nextPiece);
                 if (nextPiece != -1) {
-                    // TODO refactor request sending to support only last piece missing
-                    Request.sendMessageForIndex(nextPiece, Torrent.numberOfPartPerPiece, clntChan);
+                    Request.sendMessageForIndex(nextPiece, clntChan);
                     LOG.debug("Request message sent for " + nextPiece + " to client " + clntChan);
                     // set this piece as requested
                     this.pieceManager.requestSent(nextPiece);
@@ -316,7 +319,7 @@ public class Client {
             case Have.HAVE_TYPE:
                 Have have = (Have) msgReceived;
                 LOG.debug("Have received for index " + have.getIndex() + " from client " + clntChan);
-                if (LOG.isInfoEnabled()) {
+                if (LOG.getLevel() == Level.INFO) {
                     this.increaseClientProgress(have.getIndex(), clntChan, torrentProgressBars);
                     this.mesureUsage(pbCPU, pbMemory);
                 }
@@ -339,7 +342,7 @@ public class Client {
                 Piece piece = (Piece) msgReceived;
                 LOG.debug("Piece message received for index " + piece.getPieceIndex() + " from client " + clntChan);
                 this.handlePieceMsg(piece, clntChan, torrentProgressBars);
-                if (LOG.isInfoEnabled()) {
+                if (LOG.getLevel() == Level.INFO) {
                     this.mesureUsage(pbCPU, pbMemory);
                 }
                 break;
@@ -435,58 +438,42 @@ public class Client {
 
         this.outputFile.writeToFile(pieceIndex * Torrent.pieces_length + beginOffset, data);
 
-        if (pieceIndex < Torrent.numberOfPieces - 1) {
-            // request only if last part of piece has been received
-            if (beginOffset == Torrent.pieces_length - Piece.DATA_LENGTH) {
-                if (Piece.testPieceHash(pieceIndex, this.outputFile.getPieceData(pieceIndex))) {
-                    int nextPiece = this.pieceManager.nextPieceToRequest(clntChan.socket());
-                    Have.sendMessage(pieceIndex, clntChan);
-                    // set this piece downloaded
-                    this.pieceManager.pieceDownloaded(pieceIndex);
-                    if (LOG.isInfoEnabled()) {
-                        torrentProgressBars.getByName(clntChan.socket().toString()).stepBy(Torrent.pieces_length);
-                    }
-                    // search for next piece to be requested
-                    LOG.debug("nextPiece to be requested " + nextPiece);
-                    // only request if we still lack pieces
-                    if (nextPiece != -1) {
-                        Request.sendMessageForIndex(nextPiece, Torrent.numberOfPartPerPiece, clntChan);
-                        LOG.debug("Request message sent for " + nextPiece + " to client " + clntChan);
-                        this.pieceManager.requestSent(nextPiece);
-                    } else if (!this.pieceManager.getDownloaded().contains(false)) {
-                        this.piecesMissing = false;
-                    }
+        int pieceLength = Torrent.pieces_length;
+        if (pieceIndex == Torrent.numberOfPieces - 1) {
+            pieceLength = Torrent.lastPieceLength;
+        }
 
-                } else {
-                    Request.sendMessageForIndex(pieceIndex, Torrent.numberOfPartPerPiece, clntChan);
+        // request only if last part of piece has been received
+        if (beginOffset == pieceLength - data.length) {
+            if (Piece.testPieceHash(pieceIndex, this.outputFile.getPieceData(pieceIndex))) {
+
+                // send have for this piece
+                Have.sendMessage(pieceIndex, clntChan);
+                // set this piece downloaded
+                this.pieceManager.pieceDownloaded(pieceIndex);
+                // update progressbar
+                if (LOG.getLevel() == Level.INFO) {
+                    torrentProgressBars.getByName(this.outputFile.getName()).stepBy(Torrent.pieces_length);
                 }
-            }
-        } else {
-            // last piece
-            if (beginOffset == Torrent.lastPieceLength - Torrent.lastPartLength) {
-                // last part of last piece received
-                if (Piece.testPieceHash(pieceIndex, this.outputFile.getPieceData(pieceIndex))) {
-                    int nextPiece = this.pieceManager.nextPieceToRequest(clntChan.socket());
-                    this.pieceManager.pieceDownloaded(pieceIndex);
-                    Have.sendMessage(pieceIndex, clntChan);
-                    if (LOG.isInfoEnabled()) {
-                        torrentProgressBars.getByName(clntChan.socket().toString()).stepBy(Torrent.lastPieceLength);
-                    }
-                    // search for next piece to be requested
-                    LOG.debug("nextPiece to be requested " + nextPiece);
-                    // only request if we still lack pieces
-                    if (nextPiece != -1) {
-                        Request.sendMessageForIndex(nextPiece, Torrent.numberOfPartPerPiece, clntChan);
-                        LOG.debug("Request message sent for " + nextPiece + " to client " + clntChan);
-                        this.pieceManager.requestSent(nextPiece);
-                    } else if (!this.pieceManager.getDownloaded().contains(false)) {
-                        this.piecesMissing = false;
-                    }
-                } else {
-                    Request.sendMessageForIndex(pieceIndex, Torrent.numberOfPartPerPiece, clntChan);
+
+                // search for next piece to be requested
+                int nextPiece = this.pieceManager.nextPieceToRequest(clntChan.socket());
+                LOG.debug("nextPiece to be requested " + nextPiece);
+                // only request if we still lack pieces
+                if (nextPiece != -1) {
+                    Request.sendMessageForIndex(nextPiece, clntChan);
+                    LOG.debug("Request message sent for " + nextPiece + " to client " + clntChan);
+                    this.pieceManager.requestSent(nextPiece);
+                } else if (!this.pieceManager.getDownloaded().contains(false)) {
+                    this.piecesMissing = false;
                 }
+
+            } else {
+                // piece not good ask for the same again
+                Request.sendMessageForIndex(pieceIndex, clntChan);
             }
         }
+
     }
 
     private void closeConnection(SocketChannel clntChan) throws IOException {

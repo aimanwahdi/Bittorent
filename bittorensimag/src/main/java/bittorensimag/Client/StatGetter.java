@@ -75,13 +75,13 @@ public class StatGetter {
             }
         }
 
-        // if (LOG.isInfoEnabled()) {
+        // if (LOG.getLevel() == Level.INFO) {
         // LOG.info("[Total Memory Used] " + usedMemory + " / " + totalMemory + " GB");
         // }
         // double memoryPercent = (usedMemory / totalMemory) * 100;
         // // truncate to 3 digits
         // double truncatedMemoryPercent = StatGetter.truncate(memoryPercent, 3);
-        // if (LOG.isInfoEnabled()) {
+        // if (LOG.getLevel() == Level.INFO) {
         // LOG.info("[Total Memory Used] " + truncatedMemoryPercent + " %");
         // }
         return usedMemory;
@@ -132,12 +132,12 @@ public class StatGetter {
         // assume system cores = available cores to JVM
         int cores = ManagementFactory.getOperatingSystemMXBean().getAvailableProcessors();
 
-        // if (LOG.isInfoEnabled()) {
+        // if (LOG.getLevel() == Level.INFO) {
         // LOG.info("[CPU Average Load] " + loadAvg + " on " + cores + " cores");
         // }
 
         double loadAvgPercentage = (loadAvg / cores) * 100;
-        // if (LOG.isInfoEnabled()) {
+        // if (LOG.getLevel() == Level.INFO) {
         // LOG.info("[CPU Percentage Load] " + loadAvgPercentage + " % on " + cores + "
         // cores");
         // }

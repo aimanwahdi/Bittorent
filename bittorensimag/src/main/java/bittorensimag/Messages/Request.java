@@ -63,10 +63,13 @@ public class Request extends Msg {
 		LOG.debug("Message Request sent for index=" + index + " beginOffset=" + beginOffset);
 	}
 
-	public static void sendMessageForIndex(int index, int numberOfParts, SocketChannel clntChan) throws IOException {
+	public static void sendMessageForIndex(int index, SocketChannel clntChan) throws IOException {
+		// Change according to index
+		int numberOfParts = Torrent.numberOfPartPerPiece;
 		if (index == Torrent.numberOfPieces - 1) {
 			numberOfParts = Torrent.lastPieceNumberOfParts;
 		}
+
 		for (int j = 0; j < numberOfParts - 1; j++) {
 			Request.sendMessage(index, j * Piece.DATA_LENGTH, Piece.DATA_LENGTH, clntChan);
 		}

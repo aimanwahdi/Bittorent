@@ -18,7 +18,7 @@ public class MapUtil {
             if (map.containsKey(key)) {
                 return map.get(key).getString();
             } else {
-                LOG.warn("Torrent file does not contain key : " + key);
+                // LOG.warn("Torrent file does not contain key : " + key);
             }
         } catch (InvalidBEncodingException e) {
             LOG.error("Could not decode string from key : " + key);
@@ -31,7 +31,7 @@ public class MapUtil {
             if (map.containsKey(key)) {
                 return map.get(key).getInt();
             } else {
-                LOG.warn("Torrent file does not contain key : " + key);
+                // LOG.warn("Torrent file does not contain key : " + key);
             }
         } catch (InvalidBEncodingException e) {
             LOG.error("Could not decode int from key : " + key);
@@ -44,7 +44,7 @@ public class MapUtil {
             if (map.containsKey(key)) {
                 return map.get(key).getBytes();
             } else {
-                LOG.warn("Torrent file does not contain key : " + key);
+                // LOG.warn("Torrent file does not contain key : " + key);
             }
         } catch (InvalidBEncodingException e) {
             LOG.error("Could not decode bytes from key : " + key);
@@ -56,7 +56,7 @@ public class MapUtil {
             String[] keyStrings) throws InvalidBEncodingException {
         for (String key : keyStrings) {
             destMap.put(key, MapUtil.getKeyString(sourceMap, key));
-            LOG.debug("String key " + key + " has been successfully added");
+            // LOG.debug("String key " + key + " has been successfully added");
         }
     }
 
@@ -64,7 +64,7 @@ public class MapUtil {
             String[] keyStrings) throws InvalidBEncodingException {
         for (String key : keyStrings) {
             destMap.put(key, MapUtil.getKeyInt(sourceMap, key));
-            LOG.debug("Int key " + key + " has been successfully added");
+            // LOG.debug("Int key " + key + " has been successfully added");
         }
     }
 
@@ -72,7 +72,7 @@ public class MapUtil {
             String[] keyStrings) throws InvalidBEncodingException {
         for (String key : keyStrings) {
             destMap.put(key, MapUtil.getKeyByte(sourceMap, key));
-            LOG.debug("Bytes key " + key + " has been successfully added");
+            // LOG.debug("Bytes key " + key + " has been successfully added");
         }
     }
 
@@ -82,7 +82,7 @@ public class MapUtil {
         while (iterator.hasNext()) {
             Map.Entry<Integer, byte[]> mapEntry = (Map.Entry<Integer, byte[]>) iterator.next();
             buffer.put((byte[]) mapEntry.getValue());
-            LOG.debug("Key " + mapEntry.getKey() + " has been successfully added");
+            // LOG.debug("Key " + mapEntry.getKey() + " has been successfully added");
         }
         return buffer.array();
     }
