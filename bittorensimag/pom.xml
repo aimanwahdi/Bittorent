@@ -202,7 +202,7 @@
               <goal>exec</goal>
             </goals>
           </execution>
-          <execution>
+          <!-- <execution>
             <id>start-leechers</id>
             <configuration>
               <executable>./src/test/script/multi-leechers.sh</executable>
@@ -211,7 +211,7 @@
             <goals>
               <goal>exec</goal>
             </goals>
-          </execution>
+          </execution> -->
         </executions>
       </plugin>
       <plugin>
