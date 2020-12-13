@@ -14,12 +14,8 @@
 # Do not track generated files
 bittorensimag/src/test/outputFolder/*
 
-# Do not track output of nohup
-bittorensimag/mvn-compile.out
-
 #Do not track logs
 bittorensimag/src/test/logs/*
-bittorensimag.log
 
 # Do not add Big buck bunny
 bittorensimag/src/test/exampleFiles/Big_Buck_Bunny*

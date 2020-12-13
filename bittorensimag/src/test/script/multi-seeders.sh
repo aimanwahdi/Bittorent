@@ -12,8 +12,8 @@ if ! [ -r pom.xml ]; then
 fi
 # Exemple de script de lancement de plusieurs clients transmissions
 
-# Start by cleaning everything
-./src/test/script/cleanClients.sh
+# Start by cleaning clients
+#./src/test/script/cleanClients.sh
 
 # My directory structure
 # ..
@@ -42,11 +42,11 @@ for i in $(seq $1 ${seeder_number});do
 	rpcPort=$((6800 + $i))
     echo "Starting seeder $i on port $port"
 
-	downloadFolder=$fileFolder/aria2c$i
+	downloadFolder=$fileFolder/aria2c_$i
 	mkdir $downloadFolder
 
 	cp $file $downloadFolder
 
-	aria2c --enable-rpc --rpc-listen-all --rpc-listen-port=$rpcPort --seed-ratio=0.0 --listen-port $port -V -d $downloadFolder $torrent &>/dev/null &
+	aria2c --enable-rpc --rpc-listen-all --rpc-listen-port=$rpcPort --seed-ratio=0.0 --listen-port $port -V -d $downloadFolder $torrent &>./src/test/logs/aria2c_$i.log &
 	sleep 1
 done

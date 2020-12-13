@@ -13,7 +13,7 @@ fi
 # Exemple de script de lancement de plusieurs clients transmissions
 
 # Start by cleaning clients
-./src/test/script/cleanClients.sh
+#./src/test/script/cleanClients.sh
 
 # My directory structure
 # ..
@@ -42,9 +42,9 @@ for i in $(seq $1 ${leechers_number});do
 	rpcPort=$((6800 + $i))
     echo "Starting leecher $i on port $port"
 
-	downloadFolder=$fileFolder/aria2c$i
+	downloadFolder=$fileFolder/aria2c_$i
 	mkdir $downloadFolder
 
-	aria2c --enable-rpc --rpc-listen-all --rpc-listen-port=$rpcPort --listen-port $port -d $downloadFolder $torrent  &>/dev/null &
+	aria2c --enable-rpc --rpc-listen-all --rpc-listen-port=$rpcPort --listen-port $port -d $downloadFolder $torrent  &>./src/test/logs/aria2c_$i.log &
 	sleep 1
 done

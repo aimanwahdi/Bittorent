@@ -5,14 +5,13 @@ if ! [ -r pom.xml ]; then
     cd "$(dirname "$0")"/../../../
 fi
 
-fileFolder=$HOME/Downloads
-# delete capture file
-rm $fileFolder/bittorensimag
+
 echo "Fermeture des programmes d'environnement"
 
-killall wireshark
 # Pour enlever aussi firefox (penser à enlever le warning pour fermer plusieurs onglets)
 wmctrl -c "Firefox" -x "Navigator.Firefox"
+
+killall wireshark
 
 # a ne pas utiliser car fermeture violente
 # killall firefox
@@ -21,3 +20,5 @@ wmctrl -c "Firefox" -x "Navigator.Firefox"
 killall opentracker.debug
 
 killall node
+
+rm ./src/test/logs/*

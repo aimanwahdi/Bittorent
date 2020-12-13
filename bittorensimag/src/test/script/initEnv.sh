@@ -6,8 +6,6 @@ if ! [ -r pom.xml ]; then
     cd "$(dirname "$0")"/../../../
 fi
 
-fileFolder=$HOME/Downloads
-
 # Start of opentracker
 ../../opentracker/opentracker.debug -i 127.0.0.1 -p 6969 </dev/null &>/dev/null &
 sleep 2
@@ -21,7 +19,7 @@ cd ../../../
 
 # On lance wireshark sur loopback en affichant bittorrent
 echo "Lancement de wireshark"
-wireshark -i lo -Y bittorrent -w $fileFolder/bittorensimag -k -S -l </dev/null &>/dev/null &
+wireshark -i lo -Y bittorrent -w ./src/test/logs/bittorensimag.pcapng -k -S -l </dev/null &>/dev/null &
 sleep 1
 
 # On lance les stats d'opentracker et la webui dans firefox
