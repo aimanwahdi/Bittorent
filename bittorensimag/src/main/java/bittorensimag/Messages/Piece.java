@@ -56,6 +56,7 @@ public class Piece extends Msg {
 		this.data = data;
 	}
 
+	// TODO change return type to boolean to know if it worked
 	public static void sendMessage(int msgLength, int index, int beginOffset, byte[] data, SocketChannel clntChan)
 			throws IOException {
 		MsgCoderToWire coderToWire = new MsgCoderToWire();

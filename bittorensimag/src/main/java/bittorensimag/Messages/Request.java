@@ -46,6 +46,7 @@ public class Request extends Msg {
 		this.pieceLength = pieceLength;
 	}
 
+	// TODO change return type to boolean to know if it worked
 	// Private method to send one request message
 	private static void sendMessage(int index, int beginOffset, int pieceLength, SocketChannel clntChan) throws IOException {
 		MsgCoderToWire coderToWire = new MsgCoderToWire();

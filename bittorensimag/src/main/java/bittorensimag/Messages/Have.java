@@ -29,6 +29,7 @@ public class Have extends Msg {
 		this.index = index;
 	}
 
+	// TODO change return type to boolean to know if it worked
 	public static void sendMessage(int index, SocketChannel clntChan) throws IOException {
 		MsgCoderToWire coderToWire = new MsgCoderToWire();
 		Have have = new Have(index);

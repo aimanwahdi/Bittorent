@@ -44,6 +44,7 @@ public class Simple extends Msg {
                 + "]";
     }
 
+    // TODO change return type to boolean to know if it worked
     public static void sendMessage(int msgType, SocketChannel clntChan) throws IOException {
         MsgCoderToWire coderToWire = new MsgCoderToWire();
         Simple msg = new Simple(msgType);

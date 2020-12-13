@@ -71,7 +71,7 @@ public class Handshake {
 	dispatcher.toWire(this);
 	}
 
-	public static void sendMessage(String info_hash, SocketChannel clntChan) {
+	public static boolean sendMessage(String info_hash, SocketChannel clntChan) {
 		MsgCoderToWire coderToWire = new MsgCoderToWire();
 		Handshake handshakeMsg = new Handshake(info_hash);
 		LOG.debug("Sending Handshake message for info_hash : " + info_hash);
@@ -81,9 +81,11 @@ public class Handshake {
 			if (writeBuf.hasRemaining()) {
 				clntChan.write(writeBuf);
 			}
+			LOG.debug("Message Handshake sent to " + clntChan);
+			return true;
 		} catch (IOException e) {
 			LOG.error("Error sending Handshake message");
+			return false;
 		}
-		LOG.debug("Message Handshake sent");
 	}
 }

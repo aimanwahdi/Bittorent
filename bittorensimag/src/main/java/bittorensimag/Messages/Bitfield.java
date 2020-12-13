@@ -52,6 +52,7 @@ public class Bitfield extends Msg {
 		Bitfield.ourBitfieldData[index] = status;
 	}
 
+	// TODO change return type to boolean to know if it worked
 	public static void sendMessage(byte[] dataBitfield, SocketChannel clntChan) throws IOException {
 		MsgCoderToWire coderToWire = new MsgCoderToWire();
 		Bitfield msgBitfield = new Bitfield(dataBitfield);
