@@ -46,37 +46,61 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
         for (int i = 0; i < length; i++) {
             lengthString += Util.intToHexStringWith0(readBuffer.get(i) & 0xff);
         }
-        return Integer.parseInt(lengthString, 16);
+        try {
+            return Integer.parseInt(lengthString, 16);
+        } catch (NumberFormatException e) {
+            LOG.error("Could not format number, received continuation data ? " + lengthString);
+            return -1;
+        }
+
     }
 
     @Override
     public Object fromWire(SocketChannel clntChan) throws IOException {
 
         ByteBuffer firstByteBuffer = ByteBuffer.allocate(1);
-        int firstByte = 0;
+        int readResult = 0;
 
         long startTime = System.currentTimeMillis(); // fetch starting time
 
-        while (firstByteBuffer.remaining() != 0 && firstByte != -1
-                && (System.currentTimeMillis() - startTime) < 10000) {
-            firstByte = clntChan.read(firstByteBuffer);
+        while (true) {
+            readResult = clntChan.read(firstByteBuffer);
+            // end of stream for channel
+            if (readResult == -1 && (System.currentTimeMillis() - startTime) >= 10000) {
+                LOG.error("Channel reached end of stream, closing channel");
+                return -1;
+            }
+            // read nothing and timeout reached
+            else if (readResult == 0 && (System.currentTimeMillis() - startTime) >= 10000) {
+                LOG.debug("10 sec timeout reached");
+                return -1;
+            } 
+            else if (readResult > 0) {
+                // we read something
+                firstByteBuffer.rewind();
+                return fromWire(firstByteBuffer.get(), clntChan);
+            }
         }
-        // LOG.debug("firstByte " + firstByteBuffer.get(0));
-
-        if (firstByte == 0 && (System.currentTimeMillis() - startTime) >= 10000) {
-            LOG.debug("no reponse");
-            return null;
-        }
-
-        return fromWire(firstByteBuffer, clntChan);
     }
 
     @Override
-    public Object fromWire(ByteBuffer firstByteBuffer, SocketChannel clntChan) throws IOException {
-        // set position to zero
-        firstByteBuffer.rewind();
-        byte firstByte = firstByteBuffer.get();
-
+    public Object fromWire(Byte firstByte, SocketChannel clntChan) throws IOException {
+        ByteBuffer oneByteBuffer = ByteBuffer.allocate(1);
+        // first byte is part of length so cannot be negative
+        if (firstByte < 0) {
+            LOG.error("Received negative first byte, surely continuation data, reading the rest");
+            while (true) {
+                int readResult = clntChan.read(oneByteBuffer);
+                if (readResult == -1) {
+                    return -1;
+                }
+                if (readResult == 0) {
+                    break;
+                }
+            }
+            LOG.error("Finished consuming channel");
+            return null;
+        }
         if (firstByte == Handshake.HANDSHAKE_LENGTH) {
             LOG.debug("Received Message : Handshake");
 
@@ -84,7 +108,7 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
             byte[] protocol = this.readLength(clntChan, Handshake.HANDSHAKE_LENGTH);
 
             if (Handshake.protocolName.compareTo(new String(protocol)) != 0) {
-                LOG.error("This is not bittorent protocol");
+                LOG.error("This is not bittorent protocol : " + new String(protocol));
                 return null;
             }
 
@@ -107,12 +131,27 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
 
             return new Handshake(sha1Hash, peerId, extensionBytesLong);
         } else {
+            // fisrt byte is positive and not handshake try to read it's length
+
             // read three last bytes of length
             int totalLength = this.readTotalLength(clntChan, firstByte);
 
             // LOG.debug("totalLength " + totalLength);
 
-            if (totalLength == 0) {
+            // not readable data surely continuation or extended
+            if (totalLength > Piece.PIECE_LENGTH) {
+                LOG.error(
+                        "Message received too long : " + totalLength + ", surely continuation data, reading the rest");
+                while (true) {
+                    int readResult = clntChan.read(oneByteBuffer);
+                    if (readResult == -1) {
+                        return -1;
+                    }
+                    if (readResult == 0) {
+                        break;
+                    }
+                }
+                LOG.error("Finished consuming channel");
                 return null;
             }
 
@@ -132,7 +171,13 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
                     return new Simple(Simple.NOTINTERESTED);
                 case Have.HAVE_TYPE:
                     int index = this.readLengthInt(clntChan, totalLength - 1);
+                    if (index == -1) {
+                        break;
+                    } else {
+
                     return new Have(index);
+                }
+
                 case Bitfield.BITFIELD_TYPE:
                     byte[] bitfieldData = this.readLength(clntChan, totalLength - 1);
                     return new Bitfield(bitfieldData);
@@ -140,12 +185,22 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
                     int requestIndex = this.readLengthInt(clntChan, 4);
                     int requestOffset = this.readLengthInt(clntChan, 4);
                     int lengthPiece = this.readLengthInt(clntChan, 4);
-                    return new Request(requestIndex, requestOffset, lengthPiece);
+                    if (requestIndex == -1 || requestOffset == -1 || lengthPiece == -1) {
+                        break;
+                    } else {
+                        return new Request(requestIndex, requestOffset, lengthPiece);
+                    }
+
                 case Piece.PIECE_TYPE:
                     int pieceIndex = this.readLengthInt(clntChan, 4);
                     int beginOffset = this.readLengthInt(clntChan, 4);
-                    byte[] data = readData(clntChan, totalLength);
-                    return new Piece(totalLength, pieceIndex, beginOffset, data);
+                    if (pieceIndex == -1 || beginOffset == -1) {
+                        break;
+                    } else {
+                        byte[] data = readData(clntChan, totalLength);
+                        return new Piece(totalLength, pieceIndex, beginOffset, data);
+                    }
+
                 // TODO if implementing endgame
                 // case CANCEL.CANCEL_TYPE:
                 // return new Cancel();
@@ -154,6 +209,7 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
             }
 
         }
+        LOG.error("Message type not recognized");
         return null;
     }
 
@@ -171,7 +227,13 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
         String thirdByteString = Util.intToHexStringWith0(readBuffer.get(1) & 0xff);
         String fourthByteString = Util.intToHexStringWith0(readBuffer.get(2) & 0xff);
 
-        return Integer.parseInt(firstByteString + secondByteString + thirdByteString + fourthByteString, 16);
+        try {
+            return Integer.parseInt(firstByteString + secondByteString + thirdByteString + fourthByteString, 16);
+        } catch (NumberFormatException e) {
+            LOG.error("Could not format number, received continuation data ? " + firstByteString + secondByteString
+                    + thirdByteString + fourthByteString);
+            return 0;
+        }
     }
 
     /*
