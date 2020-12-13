@@ -98,7 +98,7 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
                     break;
                 }
             }
-            LOG.error("Finished consuming channel");
+            // LOG.error("Finished consuming channel");
             return null;
         }
         if (firstByte == Handshake.HANDSHAKE_LENGTH) {
@@ -151,7 +151,7 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
                         break;
                     }
                 }
-                LOG.error("Finished consuming channel");
+                // LOG.error("Finished consuming channel");
                 return null;
             }
 

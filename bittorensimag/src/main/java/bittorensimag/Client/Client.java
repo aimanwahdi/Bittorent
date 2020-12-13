@@ -137,11 +137,7 @@ public class Client {
             // Use ProgressBar("Test", 100, ProgressBarStyle.ASCII) if you want ASCII output
 
             // Set extra message to display at the end of the bar
-            if (isSeeding) {
-                torrentProgressBars.setExtraMessage("Sending...");
-            } else {
-                torrentProgressBars.setExtraMessage("Receiving...");
-            }
+            torrentProgressBars.setExtraMessage("Waiting...");
 
             ArrayList<Integer> ourPieces = Bitfield.convertBitfieldToList(Bitfield.ourBitfieldData,
                     Torrent.numberOfPieces);
@@ -391,6 +387,9 @@ public class Client {
                 Request request = (Request) msgReceived;
                 LOG.debug("Request message received for index " + request.getIndex() + " from client " + clntChan);
                 this.handleRequest(request, clntChan);
+                if (Logger.getRootLogger().getLevel() == Level.INFO) {
+                    torrentProgressBars.getByName(this.outputFile.getName()).setExtraMessage("Sending...");
+                }
                 break;
             case Piece.PIECE_TYPE:
                 Piece piece = (Piece) msgReceived;
@@ -398,6 +397,7 @@ public class Client {
                 boolean increaseNeeded = this.handlePieceMsg(piece, clntChan);
                 if (Logger.getRootLogger().getLevel() == Level.INFO) {
                     this.mesureUsage(pbCPU, pbMemory);
+                    torrentProgressBars.getByName(this.outputFile.getName()).setExtraMessage("Receiving...");
                     if (increaseNeeded) {
                         this.increaseOurProgress(piece.getPieceIndex(), this.outputFile.getName(), torrentProgressBars);
                     }
