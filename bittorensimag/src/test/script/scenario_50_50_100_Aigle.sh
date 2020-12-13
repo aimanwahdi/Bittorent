@@ -1,10 +1,5 @@
 #!/bin/sh
 
-if [ "$#" -ne 2 ]; then
-  echo "Usage: multi-leechers loopBeggining loopEnd" >&2
-  exit 1
-fi
-
 # If we're not in the root of the Maven project, then find it using
 # this script's name:
 if ! [ -r pom.xml ]; then
@@ -30,21 +25,32 @@ fi
 # |	│           ├── clean.sh
 # |	│           └── multi-transmission.sh
 
-torrent=./src/test/exampleTorrents/Big_Buck_Bunny_1080p.avi.torrent
-file=./src/test/exampleFiles/Big_Buck_Bunny_1080p.avi
+torrent=./src/test/exampleTorrents/Aigle.jpg.torrent
+file=./src/test/exampleFiles/Aigle.jpg
+fileBegin=./src/test/AigleBegin/Aigle.jpg
+fileEnd=./src/test/AigleEnd/Aigle.jpg
 fileFolder=$HOME/Downloads
 
-#lancer plusieurs leechers en parallèle (ici 3)
-leechers_number=$2
+for i in $(seq 1 3);do
+    echo "Creating folder for seeder $i"
+	mkdir $fileFolder/aria2c_$i
+done
 
-for i in $(seq $1 ${leechers_number});do
+# Clean to begin as leecher 0%
+rm ./src/test/outputFolder/Aigle.jpg
+
+echo "Copying data in folders"
+cp $fileBegin $fileFolder/aria2c_1
+cp $fileEnd $fileFolder/aria2c_2
+cp $file $fileFolder/aria2c_3
+
+for i in $(seq 1 3);do
     port=$((2000 + $i))
 	rpcPort=$((6800 + $i))
-    echo "Starting leecher $i on port $port"
+    echo "Starting seeder $i on port $port"
 
 	downloadFolder=$fileFolder/aria2c_$i
-	mkdir $downloadFolder
 
-	aria2c --check-integrity=true --disable-ipv6=true --enable-dht=false --enable-dht6=false --enable-peer-exchange=false --enable-rpc --rpc-listen-all --rpc-listen-port=$rpcPort --listen-port $port -d $downloadFolder $torrent  &>./src/test/logs/aria2c_$i.log &
+	aria2c --check-integrity=true --max-upload-limit=10K --disable-ipv6=true --enable-dht=false --enable-dht6=false --enable-peer-exchange=false --enable-rpc --rpc-listen-all --rpc-listen-port=$rpcPort --seed-ratio=0.0 --listen-port $port -V -d $downloadFolder $torrent &>./src/test/logs/aria2c_$i.log &
 	sleep 1
 done

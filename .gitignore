@@ -19,3 +19,5 @@ bittorensimag/src/test/logs/*
 
 # Do not add Big buck bunny
 bittorensimag/src/test/exampleFiles/Big_Buck_Bunny*
+bittorensimag/src/test/BBB*
+bittorensimag/src/test/Aigle*
