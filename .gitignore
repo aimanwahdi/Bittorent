@@ -17,7 +17,10 @@ bittorensimag/src/test/outputFolder/*
 #Do not track logs
 bittorensimag/src/test/logs/*
 
-# Do not add Big buck bunny
+# Do not add Big buck bunny and scenario files
 bittorensimag/src/test/exampleFiles/Big_Buck_Bunny*
 bittorensimag/src/test/BBB*
 bittorensimag/src/test/Aigle*
+
+# Do not add webui files
+bittorensimag/src/test/webui*
