@@ -40,10 +40,10 @@ public class Have extends Msg {
 			if (writeBuf.hasRemaining()) {
 				clntChan.write(writeBuf);
 			}
+			LOG.debug("Message Have sent for index=" + index);
 		} catch (IOException e) {
-			LOG.error("Error sending have message");
+			LOG.error("Error sending have message " + e.getMessage());
 		}
-		LOG.debug("Message Have sent for index=" + index);
 	}
 
 }

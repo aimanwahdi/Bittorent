@@ -5,10 +5,6 @@ import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 
-import bittorensimag.ProgressBar.DefaultProgressBarRenderer;
-import bittorensimag.ProgressBar.ProgressBarConsumer;
-import bittorensimag.ProgressBar.ProgressBarStyle;
-
 public class ProgressBarArrayBuilder {
 
     private ArrayList<String> taskArray = new ArrayList<String>();

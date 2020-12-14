@@ -2,7 +2,6 @@ package bittorensimag.Messages;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -62,10 +61,10 @@ public class Bitfield extends Msg {
 			if (writeBuf.hasRemaining()) {
 				clntChan.write(writeBuf);
 			}
+			LOG.debug("Message Bitfield sent with data : " + Util.bytesToHex(dataBitfield));
 		} catch (IOException e) {
-			LOG.error("Error sending bitfield");
+			LOG.error("Error sending bitfield " + e.getMessage());
 		}
-		LOG.debug("Message Bitfield sent with data : " + Util.bytesToHex(dataBitfield));
 	}
 
 	public static ArrayList<Integer> convertBitfieldToList(byte[] bitfieldData, int numberOfPiece) {

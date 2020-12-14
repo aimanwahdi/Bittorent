@@ -58,10 +58,10 @@ public class Request extends Msg {
 				clntChan.write(writeBuf);
 			}
 			
+			LOG.debug("Message Request sent for index=" + index + " beginOffset=" + beginOffset);
 		} catch (IOException e) {
-			LOG.error("Error sending request message");
+			LOG.error("Error sending request message " + e.getMessage());
 		}
-		LOG.debug("Message Request sent for index=" + index + " beginOffset=" + beginOffset);
 	}
 
 	public static void sendMessageForIndex(int index, SocketChannel clntChan) throws IOException {

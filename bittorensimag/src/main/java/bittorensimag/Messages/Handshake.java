@@ -84,7 +84,7 @@ public class Handshake {
 			LOG.debug("Message Handshake sent to " + clntChan);
 			return true;
 		} catch (IOException e) {
-			LOG.error("Error sending Handshake message");
+			LOG.error("Error sending Handshake message " + e.getMessage());
 			return false;
 		}
 	}

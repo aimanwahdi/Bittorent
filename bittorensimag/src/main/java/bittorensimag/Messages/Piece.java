@@ -68,10 +68,10 @@ public class Piece extends Msg {
 				clntChan.write(writeBuf);
 			}
 
+			LOG.debug("Message Piece sent index=" + index + " beginOffset=" + beginOffset);
 		} catch (IOException e) {
-			LOG.error("Error sending piece message");
+			LOG.error("Error sending piece message " + e.getMessage());
 		}
-		LOG.debug("Message Piece sent index=" + index + " beginOffset=" + beginOffset);
 	}
 
 	public static boolean testPieceHash(int index, byte[] pieceData) {

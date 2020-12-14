@@ -55,9 +55,9 @@ public class Simple extends Msg {
 				clntChan.write(writeBuf);
 			}
 			
+            LOG.debug("Message " + Msg.messagesNames.get(msgType) + " sent");
 		} catch (IOException e) {
-            LOG.error("Error sending " + Msg.messagesNames.get(msgType) + " message");
-		}
-        LOG.debug("Message " + Msg.messagesNames.get(msgType) + " sent");
+            LOG.error("Error sending " + Msg.messagesNames.get(msgType) + " message " + e.getMessage());
+        }
     }
 }
