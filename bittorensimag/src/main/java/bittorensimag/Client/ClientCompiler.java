@@ -56,7 +56,8 @@ public class ClientCompiler {
         if (!tracker.foundAnotherPeer()) {
             LOG.warn("There is not another peer according to tracker");
         } else {
-            LOG.info("Found at least one peer for torrent file : " + sourceTorrent.getName());
+            int numberOfPeers = tracker.getPeersMap().entrySet().iterator().next().getValue().size();
+            LOG.info("Found " + numberOfPeers + " peer from tracker for torrent file : " + sourceTorrent.getName());
         }
 
         Client client = new Client(torrent, tracker, new MsgCoderToWire(), new MsgCoderFromWire(), destinationFolder);

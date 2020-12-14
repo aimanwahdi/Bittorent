@@ -532,8 +532,10 @@ public class Client {
         if (beginOffset == pieceLength - data.length) {
             if (Piece.testPieceHash(pieceIndex, this.outputFile.getPieceData(pieceIndex))) {
 
-                // send have for this piece
-                Have.sendMessage(pieceIndex, clntChan);
+                // send have for this piece to all other peers
+                for (SocketChannel otherChannels : this.otherClientsChannels) {
+                    Have.sendMessage(pieceIndex, otherChannels);
+                }
                 // set this piece downloaded
                 this.pieceManager.pieceDownloaded(pieceIndex);
 
