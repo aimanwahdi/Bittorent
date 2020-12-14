@@ -51,6 +51,6 @@ for i in $(seq 1 3);do
 
 	downloadFolder=$fileFolder/aria2c_$i
 
-	aria2c --check-integrity=true --max-upload-limit=1M --disable-ipv6=true --enable-dht=false --enable-dht6=false --enable-peer-exchange=false --enable-rpc --rpc-listen-all --rpc-listen-port=$rpcPort --seed-ratio=0.0 --listen-port $port -V -d $downloadFolder $torrent &>./src/test/logs/aria2c_$i.log &
+	aria2c --check-integrity=true --max-upload-limit=5M --disable-ipv6=true --enable-dht=false --enable-dht6=false --enable-peer-exchange=false --enable-rpc --rpc-listen-all --rpc-listen-port=$rpcPort --seed-ratio=0.0 --listen-port $port -V -d $downloadFolder $torrent &>./src/test/logs/aria2c_$i.log &
 	sleep 1
 done

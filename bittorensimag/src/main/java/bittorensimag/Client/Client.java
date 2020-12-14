@@ -346,13 +346,14 @@ public class Client {
 
         LOG.debug("Handling " + Msg.messagesNames.get(msgType) + " message");
         // cast to specific message and doing logic
+        int nextPiece;
         switch (msgType) {
             case Simple.CHOKE:
                 Simple choke = (Simple) msgReceived;
                 break;
             case Simple.UNCHOKE:
                 // get the next requested piece and send the request message for it
-                int nextPiece = this.pieceManager.nextPieceToRequest(clntChan.socket());
+                nextPiece = this.pieceManager.nextPieceToRequest(clntChan.socket());
                 LOG.debug("Next piece to be requested " + nextPiece);
                 if (nextPiece != -1) {
                     Request.sendMessageForIndex(nextPiece, clntChan);
@@ -383,7 +384,22 @@ public class Client {
                     this.increaseClientProgress(have.getIndex(), clntChan, torrentProgressBars);
                     this.mesureUsage(pbCPU, pbMemory);
                 }
-                // TODO stocker have client dans map pour suivre quel client a quelle pièce
+                this.handleHave(have.getIndex(), clntChan);
+
+                // test if we need the new piece that client has
+                nextPiece = this.pieceManager.nextPieceToRequest(clntChan.socket());
+                LOG.debug("Next piece to be requested " + nextPiece);
+                if (nextPiece != -1) {
+                    Request.sendMessageForIndex(nextPiece, clntChan);
+                    LOG.debug("Request message sent for " + nextPiece + " to client " + clntChan);
+                    // set this piece as requested
+                    this.pieceManager.requestSent(nextPiece);
+                } else if (!this.pieceManager.getDownloaded().contains(false)) {
+                    this.piecesMissing = false;
+                    if (!isSeeding) {
+                        Simple.sendMessage(Simple.NOTINTERESTED, clntChan);
+                    }
+                }
                 break;
             case Bitfield.BITFIELD_TYPE:
                 bitfieldReceived = (Bitfield) msgReceived;
@@ -424,6 +440,16 @@ public class Client {
         }
 
         return piecesMissing;
+    }
+
+    private void handleHave(int pieceIndex, SocketChannel clntChan) {
+        if (!this.pieceManager.getPieceMap().containsKey(pieceIndex)) {
+            ArrayList<Socket> peers = new ArrayList<Socket>();
+            peers.add(clntChan.socket());
+            this.pieceManager.getPieceMap().put(pieceIndex, peers);
+        } else {
+            this.pieceManager.getPieceMap().get(pieceIndex).add(clntChan.socket());
+        }
     }
 
     private void handleBitfield(Bitfield bitfieldReceived2, SocketChannel clntChan,
