@@ -181,7 +181,7 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
                 return null;
             } else if (totalLength == 0) {
                 LOG.error("Message received of length null, surely continuation datat");
-                return null;
+                return -1;
             }
             else if (totalLength < 0) {
                 LOG.error("Message received of length negative, surely continuation data");

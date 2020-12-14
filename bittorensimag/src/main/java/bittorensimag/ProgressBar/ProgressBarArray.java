@@ -1,5 +1,7 @@
 package bittorensimag.ProgressBar;
 
+import java.net.SocketAddress;
+import java.nio.channels.SocketChannel;
 import java.text.DecimalFormat;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
@@ -92,6 +94,17 @@ public class ProgressBarArray implements AutoCloseable {
             pb.close();
         }
 
+    }
+
+    public ProgressBar getByIPPort(SocketChannel clntChan) {
+        for (ProgressBar progressBar : pbArray) {
+            if (progressBar.getTaskName().compareTo(clntChan.socket().getRemoteSocketAddress().toString()) == 0) {
+                return progressBar;
+            }
+        }
+        LOG.error("Could not get the progressBar by its taskName "+ clntChan.socket().getRemoteSocketAddress()
+                .toString());
+        return null;
     }
 
     public ProgressBar getByName(String string) {

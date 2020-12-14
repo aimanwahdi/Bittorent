@@ -104,19 +104,7 @@ public class Client {
     }
 
     public void startProgress() throws IOException {
-        // if we found peers from tracker, register them and send handshake
-        try {
-            Map.Entry<String, ArrayList<Integer>> firstEntry = this.tracker.getPeersMap().entrySet().iterator().next();
-            this.connectToAllClients(firstEntry);
-            // send handshakes to all clients
-            for (SocketChannel clntChan : this.otherClientsChannels) {
-                Handshake.sendMessage(this.torrent.info_hash, clntChan);
-                this.handshakeSent.add(clntChan);
-            }
-        } catch (Exception e) {
-            LOG.warn("Could not connect to another client, waiting for handshake");
-        }
-
+        // StatGetter.clearScreen();
         if (Logger.getRootLogger().getLevel() == Level.INFO) {
             this.startProgressBars();
         } else {
@@ -181,6 +169,18 @@ public class Client {
     }
 
     private void startCommunication(ProgressBarArray torrentProgressBars, ProgressBar pbCPU, ProgressBar pbMemory) {
+        // if we found peers from tracker, register them and send handshake
+        try {
+            Map.Entry<String, ArrayList<Integer>> firstEntry = this.tracker.getPeersMap().entrySet().iterator().next();
+            this.connectToAllClients(firstEntry, torrentProgressBars);
+            // send handshakes to all clients
+            for (SocketChannel clntChan : this.otherClientsChannels) {
+                Handshake.sendMessage(this.torrent.info_hash, clntChan);
+                this.handshakeSent.add(clntChan);
+            }
+        } catch (Exception e) {
+            LOG.warn("Could not connect to another client, waiting for handshake");
+        }
         try {
             // Instead of creating a ServerSocket, create a ServerSocketChannel
             ServerSocketChannel ssc = ServerSocketChannel.open();
@@ -232,6 +232,10 @@ public class Client {
                         otherClientsChannels.add(clntChan);
                         Handshake.sendMessage(this.torrent.info_hash, clntChan);
                         this.handshakeSent.add(clntChan);
+                        if (Logger.getRootLogger().getLevel() == Level.INFO) {
+                            torrentProgressBars.add(this.progressBarBuilder,
+                                    clntChan.socket().getRemoteSocketAddress().toString());
+                        }
                     }
                     if (key.isReadable()) {
                         // LOG.debug("Readable key");
@@ -296,11 +300,15 @@ public class Client {
         }
     }
 
-    private void connectToAllClients(Map.Entry<String, ArrayList<Integer>> firstEntry) {
+    private void connectToAllClients(Map.Entry<String, ArrayList<Integer>> firstEntry,
+            ProgressBarArray torrentProgressBars) {
         ArrayList<Integer> portNumbers = firstEntry.getValue();
         for (int port : portNumbers) {
             LOG.debug("Connecting to localhost with port : " + port);
             this.createSocket(firstEntry.getKey(), port);
+            if (Logger.getRootLogger().getLevel() == Level.INFO) {
+                torrentProgressBars.add(this.progressBarBuilder, "/" + firstEntry.getKey() + ":" + port);
+            }
         }
     }
 
@@ -317,6 +325,7 @@ public class Client {
         }
         if (msgReceived instanceof Integer && (int) msgReceived == -1) {
             // error during reading, keep connection
+            // StatGetter.clearScreen();
             return true;
         }
 
@@ -454,14 +463,14 @@ public class Client {
     }
 
     private void resetClientProgress(SocketChannel clntChan, ProgressBarArray torrentProgressBars) {
-        torrentProgressBars.getByName(this.socketToPeerIdMap.get(clntChan)).stepTo(0);
+        torrentProgressBars.getByIPPort(clntChan).stepTo(0);
     }
 
     private void increaseClientProgress(int index, SocketChannel clntChan, ProgressBarArray torrentProgressBars) {
         if (index == Torrent.numberOfPieces - 1) {
-            torrentProgressBars.getByName(this.socketToPeerIdMap.get(clntChan)).stepBy(Torrent.lastPieceLength);
+            torrentProgressBars.getByIPPort(clntChan).stepBy(Torrent.lastPieceLength);
         } else {
-            torrentProgressBars.getByName(this.socketToPeerIdMap.get(clntChan)).stepBy(Torrent.pieces_length);
+            torrentProgressBars.getByIPPort(clntChan).stepBy(Torrent.pieces_length);
         }
     }
 
@@ -486,9 +495,11 @@ public class Client {
             return false;
         }
         String peerId = new String(handshake.getPeerId());
+        // todo update peerId
         this.socketToPeerIdMap.put(clntChan, peerId);
+
         if (Logger.getRootLogger().getLevel() == Level.INFO) {
-            torrentProgressBars.add(this.progressBarBuilder, peerId);
+            torrentProgressBars.getByIPPort(clntChan).setExtraMessage(peerId);
         }
         
         if (!this.handshakeSent.contains(clntChan)) {
@@ -568,11 +579,14 @@ public class Client {
         // end communication with client
 
         LOG.debug("Closing connection with channel" + clntChan);
-        clntChan.close();
         this.otherClientsChannels.remove(clntChan);
+
         if (Logger.getRootLogger().getLevel() == Level.INFO) {
-            torrentProgressBars.getByName(this.socketToPeerIdMap.get(clntChan)).close();
+            torrentProgressBars.getByIPPort(clntChan).close();
         }
+
+        clntChan.close();
+        // StatGetter.clearScreen();
     }
 
 }
