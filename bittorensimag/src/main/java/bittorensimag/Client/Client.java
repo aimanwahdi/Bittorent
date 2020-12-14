@@ -311,12 +311,13 @@ public class Client {
 
         if (msgReceived == null) {
 
-            // LOG.error("Message received is null or not readable");
+            // LOG.error("Message received is null or not readablem closing channel");
 
-            return true;
+            return false;
         }
         if (msgReceived instanceof Integer && (int) msgReceived == -1) {
-            return false;
+            // error during reading, keep connection
+            return true;
         }
 
         if (msgReceived instanceof Handshake) {

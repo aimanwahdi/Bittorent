@@ -37,7 +37,7 @@ for i in $(seq 1 3);do
 done
 
 # Clean to begin as leecher 0%
-rm ./src/test/outputFolder/Aigle.jpg
+# rm ./src/test/outputFolder/Aigle.jpg
 
 echo "Copying data in folders"
 cp $fileBegin $fileFolder/aria2c_1
