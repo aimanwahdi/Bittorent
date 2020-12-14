@@ -243,7 +243,7 @@ public class Client {
                                 if (!this.receivedMsg(this.coderToWire, this.coderFromWire, clntChan, torrentProgressBars,
                                         pbCPU,
                                         pbMemory)) {
-                                    this.closeConnection((SocketChannel) key.channel());
+                                    this.closeConnection((SocketChannel) key.channel(), torrentProgressBars);
                                 }
                             } catch (IOException ioe) {
                                 LOG.error("Error handling client: " + ioe.getMessage());
@@ -564,11 +564,15 @@ public class Client {
 
     }
 
-    private void closeConnection(SocketChannel clntChan) throws IOException {
+    private void closeConnection(SocketChannel clntChan, ProgressBarArray torrentProgressBars) throws IOException {
         // end communication with client
 
         LOG.debug("Closing connection with channel" + clntChan);
         clntChan.close();
+        this.otherClientsChannels.remove(clntChan);
+        if (Logger.getRootLogger().getLevel() == Level.INFO) {
+            torrentProgressBars.getByName(this.socketToPeerIdMap.get(clntChan)).close();
+        }
     }
 
 }
