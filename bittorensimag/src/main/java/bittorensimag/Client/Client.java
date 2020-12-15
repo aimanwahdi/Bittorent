@@ -393,20 +393,21 @@ public class Client {
                 }
                 this.handleHave(have.getIndex(), clntChan);
 
-                // test if we need the new piece that client has
-                nextPiece = this.pieceManager.nextPieceToRequest(clntChan.socket());
-                LOG.debug("Next piece to be requested " + nextPiece);
-                if (nextPiece != -1) {
-                    Request.sendMessageForIndex(nextPiece, clntChan);
-                    LOG.debug("Request message sent for " + nextPiece + " to client " + clntChan);
-                    // set this piece as requested
-                    this.pieceManager.requestSent(nextPiece);
-                } else if (!this.pieceManager.getDownloaded().contains(false)) {
-                    this.piecesMissing = false;
-                    if (!isSeeding) {
-                        Simple.sendMessage(Simple.NOTINTERESTED, clntChan);
-                    }
-                }
+                // // test if we need the new piece that client has
+                // nextPiece = this.pieceManager.nextPieceToRequest(clntChan.socket());
+                // LOG.debug("Next piece to be requested " + nextPiece);
+                // if (nextPiece != -1) {
+                // Request.sendMessageForIndex(nextPiece, clntChan);
+                // LOG.debug("Request message sent for " + nextPiece + " to client " +
+                // clntChan);
+                // // set this piece as requested
+                // this.pieceManager.requestSent(nextPiece);
+                // } else if (!this.pieceManager.getDownloaded().contains(false)) {
+                // this.piecesMissing = false;
+                // if (!isSeeding) {
+                // Simple.sendMessage(Simple.NOTINTERESTED, clntChan);
+                // }
+                // }
                 break;
             case Bitfield.BITFIELD_TYPE:
                 bitfieldReceived = (Bitfield) msgReceived;
