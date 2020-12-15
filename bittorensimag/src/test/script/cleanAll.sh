@@ -10,3 +10,6 @@ fi
 
 # Then clean environment
 ./src/test/script/cleanEnv.sh
+
+# Finally clean output folder
+./src/test/script/cleanOutput.sh
