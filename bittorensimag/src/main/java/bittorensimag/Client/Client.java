@@ -172,6 +172,13 @@ public class Client {
         // if we found peers from tracker, register them and send handshake
         try {
             Map.Entry<String, ArrayList<Integer>> firstEntry = this.tracker.getPeersMap().entrySet().iterator().next();
+            // HashMap<String, ArrayList<Integer>> craftedMap = new HashMap<String,
+            // ArrayList<Integer>>();
+            // craftedMap.put("127.0.0.1", new ArrayList<Integer>(Arrays.asList(2001, 2002,
+            // 2003)));
+            // Map.Entry<String, ArrayList<Integer>> firstEntry =
+            // craftedMap.entrySet().iterator().next();
+            // LOG.warn("Using crafted map instead of tracker answer");
             this.connectToAllClients(firstEntry, torrentProgressBars);
             // send handshakes to all clients
             for (SocketChannel clntChan : this.otherClientsChannels) {
