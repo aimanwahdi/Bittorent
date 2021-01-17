@@ -8,6 +8,8 @@
 .project
 .metadata
 .settings
+.idea
+.history
 .vscode/
 **/*.DS_Store
 
