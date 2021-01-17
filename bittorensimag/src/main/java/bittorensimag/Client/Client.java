@@ -3,11 +3,9 @@ package bittorensimag.Client;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
-import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -47,6 +45,7 @@ public class Client {
     boolean isSeeding;
     private Selector selector;
     private List<SocketChannel> otherClientsChannels;
+    private List<Integer> portsConnected;
 
     private Bitfield bitfieldReceived;
     private ArrayList<Integer> piecesDispo;
@@ -61,6 +60,8 @@ public class Client {
     private boolean piecesMissing = true;
 
     private ProgressBarBuilder progressBarBuilder;
+
+    private long startTime;
 
     public Client(Torrent torrent, Tracker tracker, MsgCoderToWire coderToWire, MsgCoderFromWire coderFromWire,
             File destinationFolder) throws IOException {
@@ -77,6 +78,7 @@ public class Client {
         this.leecherOrSeeder(destinationFolder);
 
         this.otherClientsChannels = new ArrayList<SocketChannel>();
+        this.portsConnected = new ArrayList<Integer>();
         this.createSelector(); // create selector
     }
 
@@ -114,7 +116,7 @@ public class Client {
     }
 
     private void startProgressBars() {
-        
+
         try (ProgressBarArray torrentProgressBars = this.createTorrentProgress();
                 ProgressBar pbCPU = new ProgressBarBuilder().setTaskName("CPU").setInitialMax(100)
                         .setStyle(ProgressBarStyle.UNICODE_BLOCK).build();
@@ -169,45 +171,34 @@ public class Client {
     }
 
     private void startCommunication(ProgressBarArray torrentProgressBars, ProgressBar pbCPU, ProgressBar pbMemory) {
-        // if we found peers from tracker, register them and send handshake
+        this.connectToAllClients(torrentProgressBars);
         try {
-            Map.Entry<String, ArrayList<Integer>> firstEntry = this.tracker.getPeersMap().entrySet().iterator().next();
-            // HashMap<String, ArrayList<Integer>> craftedMap = new HashMap<String,
-            // ArrayList<Integer>>();
-            // craftedMap.put("127.0.0.1", new ArrayList<Integer>(Arrays.asList(2001, 2002,
-            // 2003)));
-            // Map.Entry<String, ArrayList<Integer>> firstEntry =
-            // craftedMap.entrySet().iterator().next();
-            // LOG.warn("Using crafted map instead of tracker answer");
-            this.connectToAllClients(firstEntry, torrentProgressBars);
-            // send handshakes to all clients
-            for (SocketChannel clntChan : this.otherClientsChannels) {
-                Handshake.sendMessage(this.torrent.info_hash, clntChan);
-                this.handshakeSent.add(clntChan);
-            }
-        } catch (Exception e) {
-            LOG.warn("Could not connect to another client, waiting for handshake");
-        }
-        try {
-            // Instead of creating a ServerSocket, create a ServerSocketChannel
-            ServerSocketChannel ssc = ServerSocketChannel.open();
+            // // Instead of creating a ServerSocket, create a ServerSocketChannel
+            // ServerSocketChannel ssc = ServerSocketChannel.open();
 
-            // Set it to non-blocking, so we can use select
-            ssc.configureBlocking(false);
+            // // Set it to non-blocking, so we can use select
+            // ssc.configureBlocking(false);
 
-            // Get the Socket connected to this channel, and bind it to the
-            // listening port
-            ServerSocket ss = ssc.socket();
-            InetSocketAddress isa = new InetSocketAddress(PORT);
-            ss.bind(isa);
+            // // Get the Socket connected to this channel, and bind it to the
+            // // listening port
+            // ServerSocket ss = ssc.socket();
+            // InetSocketAddress isa = new InetSocketAddress(PORT);
+            // ss.bind(isa);
 
-            // Register the ServerSocketChannel, so we can listen for incoming
-            // connections
-            ssc.register(selector, SelectionKey.OP_ACCEPT);
-            LOG.debug("Listening on port " + PORT + " for incoming connections");
+            // // Register the ServerSocketChannel, so we can listen for incoming
+            // // connections
+            // ssc.register(selector, SelectionKey.OP_ACCEPT);
+            // LOG.debug("Listening on port " + PORT + " for incoming connections");
+
+            this.startTime = System.currentTimeMillis(); // fetch starting time
 
             // TODO go from leecher to seeder when all pieces received
             while (piecesMissing) {
+
+                if ((System.currentTimeMillis() - startTime) >= 5000) {
+                    this.fetchTracker(torrentProgressBars);
+                }
+
                 // Run while reading processing available I/O operations
                 // Wait for some channel to be ready (or timeout)
 
@@ -225,25 +216,25 @@ public class Client {
                 while (keyIter.hasNext()) {
                     SelectionKey key = keyIter.next();
                     // if we receive a new connnection from a new client
-                    if (key.isAcceptable()) {
-                        // It's an incoming connection. Register this socket with
-                        // the Selector so we can listen for input on it
-                        SocketChannel clntChan = ss.accept().getChannel();
+                    // if (key.isAcceptable()) {
+                    // // It's an incoming connection. Register this socket with
+                    // // the Selector so we can listen for input on it
+                    // SocketChannel clntChan = ss.accept().getChannel();
 
-                        LOG.info("Received a new connection from " + clntChan);
+                    // LOG.info("Received a new connection from " + clntChan);
 
-                        clntChan.configureBlocking(false);
+                    // clntChan.configureBlocking(false);
 
-                        // Register it with the selector, for reading and writing
-                        clntChan.register(selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE);
-                        otherClientsChannels.add(clntChan);
-                        Handshake.sendMessage(this.torrent.info_hash, clntChan);
-                        this.handshakeSent.add(clntChan);
-                        if (Logger.getRootLogger().getLevel() == Level.INFO) {
-                            torrentProgressBars.add(this.progressBarBuilder,
-                                    clntChan.socket().getRemoteSocketAddress().toString());
-                        }
-                    }
+                    // // Register it with the selector, for reading and writing
+                    // clntChan.register(selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE);
+                    // otherClientsChannels.add(clntChan);
+                    // Handshake.sendMessage(this.torrent.info_hash, clntChan);
+                    // this.handshakeSent.add(clntChan);
+                    // if (Logger.getRootLogger().getLevel() == Level.INFO) {
+                    // torrentProgressBars.add(this.progressBarBuilder,
+                    // clntChan.socket().getRemoteSocketAddress().toString());
+                    // }
+                    // }
                     if (key.isReadable()) {
                         // LOG.debug("Readable key");
                         // Client socket channel is available for writing
@@ -251,9 +242,8 @@ public class Client {
                             // LOG.debug("Writable key");
                             try {
                                 SocketChannel clntChan = (SocketChannel) key.channel();
-                                if (!this.receivedMsg(this.coderToWire, this.coderFromWire, clntChan, torrentProgressBars,
-                                        pbCPU,
-                                        pbMemory)) {
+                                if (!this.receivedMsg(this.coderToWire, this.coderFromWire, clntChan,
+                                        torrentProgressBars, pbCPU, pbMemory)) {
                                     this.closeConnection((SocketChannel) key.channel(), torrentProgressBars);
                                 }
                             } catch (IOException ioe) {
@@ -270,6 +260,15 @@ public class Client {
         } catch (IOException ie) {
             LOG.error("Error during try loop : " + ie.getMessage());
         }
+    }
+
+    private void fetchTracker(ProgressBarArray torrentProgressBars) throws IOException {
+        LOG.debug("Generating GET Request for tracker");
+        this.tracker.generateUrl(Tracker.EVENT_STARTED);
+        LOG.debug("Successfully generated GET Request");
+        this.tracker.getRequest(Tracker.EVENT_STARTED);
+        this.connectToAllClients(torrentProgressBars);
+        this.startTime = System.currentTimeMillis(); // reset starting time
     }
 
     private void createSelector() throws IOException {
@@ -307,15 +306,40 @@ public class Client {
         }
     }
 
-    private void connectToAllClients(Map.Entry<String, ArrayList<Integer>> firstEntry,
-            ProgressBarArray torrentProgressBars) {
-        ArrayList<Integer> portNumbers = firstEntry.getValue();
-        for (int port : portNumbers) {
-            LOG.debug("Connecting to localhost with port : " + port);
-            this.createSocket(firstEntry.getKey(), port);
-            if (Logger.getRootLogger().getLevel() == Level.INFO) {
-                torrentProgressBars.add(this.progressBarBuilder, "/" + firstEntry.getKey() + ":" + port);
+    private void connectToAllClients(ProgressBarArray torrentProgressBars) {
+        // if we found peers from tracker, register them and send handshake
+        try {
+            Map.Entry<String, ArrayList<Integer>> firstEntry = this.tracker.getPeersMap().entrySet().iterator().next();
+            // HashMap<String, ArrayList<Integer>> craftedMap = new HashMap<String,
+            // ArrayList<Integer>>();
+            // craftedMap.put("127.0.0.1", new ArrayList<Integer>(Arrays.asList(2001, 2002,
+            // 2003)));
+            // Map.Entry<String, ArrayList<Integer>> firstEntry =
+            // craftedMap.entrySet().iterator().next();
+            // LOG.warn("Using crafted map instead of tracker answer");
+            String destAddress = firstEntry.getKey();
+            ArrayList<Integer> portNumbers = firstEntry.getValue();
+            for (int port : portNumbers) {
+                if (this.portsConnected.contains(port)) {
+                    continue;
+                } else {
+                    LOG.debug("Connecting to localhost with port : " + port);
+                    this.createSocket(destAddress, port);
+                    this.portsConnected.add(port);
+                    if (Logger.getRootLogger().getLevel() == Level.INFO) {
+                        torrentProgressBars.add(this.progressBarBuilder, "/" + destAddress + ":" + port);
+                    }
+                    // send handshakes to new client
+                    for (SocketChannel clntChan : this.otherClientsChannels) {
+                        if (!this.handshakeSent.contains(clntChan)) {
+                            Handshake.sendMessage(this.torrent.info_hash, clntChan);
+                            this.handshakeSent.add(clntChan);
+                        }
+                    }
+                }
             }
+        } catch (Exception e) {
+            LOG.warn("Could not connect to another client, waiting for handshake");
         }
     }
 
@@ -613,7 +637,11 @@ public class Client {
         // end communication with client
 
         LOG.debug("Closing connection with channel" + clntChan);
-        this.otherClientsChannels.remove(clntChan);
+        int port = clntChan.socket().getPort();
+        if (this.otherClientsChannels.contains(clntChan) && this.portsConnected.contains(port)) {
+            this.otherClientsChannels.remove(clntChan);
+            this.portsConnected.remove(Integer.valueOf(port));
+        }
 
         if (Logger.getRootLogger().getLevel() == Level.INFO) {
             torrentProgressBars.getByIPPort(clntChan).close();
