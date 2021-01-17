@@ -308,39 +308,38 @@ public class Client {
 
     private void connectToAllClients(ProgressBarArray torrentProgressBars) {
         // if we found peers from tracker, register them and send handshake
-        try {
-            Map.Entry<String, ArrayList<Integer>> firstEntry = this.tracker.getPeersMap().entrySet().iterator().next();
-            // HashMap<String, ArrayList<Integer>> craftedMap = new HashMap<String,
-            // ArrayList<Integer>>();
-            // craftedMap.put("127.0.0.1", new ArrayList<Integer>(Arrays.asList(2001, 2002,
-            // 2003)));
-            // Map.Entry<String, ArrayList<Integer>> firstEntry =
-            // craftedMap.entrySet().iterator().next();
-            // LOG.warn("Using crafted map instead of tracker answer");
-            String destAddress = firstEntry.getKey();
-            ArrayList<Integer> portNumbers = firstEntry.getValue();
-            for (int port : portNumbers) {
-                if (this.portsConnected.contains(port)) {
-                    continue;
-                } else {
-                    LOG.debug("Connecting to localhost with port : " + port);
-                    this.createSocket(destAddress, port);
-                    this.portsConnected.add(port);
-                    if (Logger.getRootLogger().getLevel() == Level.INFO) {
-                        torrentProgressBars.add(this.progressBarBuilder, "/" + destAddress + ":" + port);
-                    }
-                    // send handshakes to new client
-                    for (SocketChannel clntChan : this.otherClientsChannels) {
-                        if (!this.handshakeSent.contains(clntChan)) {
-                            Handshake.sendMessage(this.torrent.info_hash, clntChan);
-                            this.handshakeSent.add(clntChan);
+        // HashMap<String, ArrayList<Integer>> craftedMap = new HashMap<String,
+        // ArrayList<Integer>>();
+        // craftedMap.put("127.0.0.1", new ArrayList<Integer>(Arrays.asList(2001, 2002,
+        // 2003)));
+        // Map.Entry<String, ArrayList<Integer>> firstEntry =
+        // craftedMap.entrySet().iterator().next();
+        // LOG.warn("Using crafted map instead of tracker answer");
+        Iterator<Map.Entry<String, ArrayList<Integer>>> iterator = this.tracker.getPeersMap().entrySet().iterator();
+        if (iterator.hasNext()) {
+            Map.Entry<String, ArrayList<Integer>> firstEntry = iterator.next();
+                String destAddress = firstEntry.getKey();
+                ArrayList<Integer> portNumbers = firstEntry.getValue();
+                for (int port : portNumbers) {
+                    if (this.portsConnected.contains(port)) {
+                        continue;
+                    } else {
+                        LOG.debug("Connecting to localhost with port : " + port);
+                        this.createSocket(destAddress, port);
+                        this.portsConnected.add(port);
+                        if (Logger.getRootLogger().getLevel() == Level.INFO) {
+                            torrentProgressBars.add(this.progressBarBuilder, "/" + destAddress + ":" + port);
+                        }
+                        // send handshakes to new client
+                        for (SocketChannel clntChan : this.otherClientsChannels) {
+                            if (!this.handshakeSent.contains(clntChan)) {
+                                Handshake.sendMessage(this.torrent.info_hash, clntChan);
+                                this.handshakeSent.add(clntChan);
+                            }
                         }
                     }
                 }
             }
-        } catch (Exception e) {
-            LOG.warn("Could not connect to another client, waiting for handshake");
-        }
     }
 
     private boolean receivedMsg(MsgCoderToWire coderToWire, MsgCoderFromWire coderFromWire, SocketChannel clntChan,
