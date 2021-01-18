@@ -220,7 +220,6 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
                     } else {
                         return new Have(index);
                     }
-
                 case Bitfield.BITFIELD_TYPE:
                     byte[] bitfieldData = this.readSafe(clntChan, totalLength - 1);
                     if (bitfieldData == null) {
@@ -242,7 +241,6 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
                     } else {
                         return new Request(requestIndex, requestOffset, lengthPiece);
                     }
-
                 case Piece.PIECE_TYPE:
                     int pieceIndex = this.readLengthInt(clntChan, 4);
                     int beginOffset = this.readLengthInt(clntChan, 4);
@@ -261,10 +259,20 @@ public class MsgCoderFromWire implements MsgCoderDispatcherFromWire {
                         }
                         return new Piece(totalLength, pieceIndex, beginOffset, data);
                     }
-
-                // TODO if implementing endgame
-                // case CANCEL.CANCEL_TYPE:
-                // return new Cancel();
+                case Cancel.CANCEL_TYPE:
+                    int cancelIndex = this.readLengthInt(clntChan, 4);
+                    int cancelOffset = this.readLengthInt(clntChan, 4);
+                    int cancelPiece = this.readLengthInt(clntChan, 4);
+                    if (cancelIndex < 0 || cancelOffset < 0 || cancelPiece < 0) {
+                        LOG.error("Received negative cancelIndex " + cancelIndex + " or beginOffset " + cancelOffset
+                                + " or length " + cancelPiece);
+                        return null;
+                    } else if (cancelIndex > Torrent.numberOfPieces) {
+                        LOG.error("Received cancel for invalid index : " + cancelIndex);
+                        return null;
+                    } else {
+                        return new Cancel(cancelIndex, cancelOffset, cancelPiece);
+                    }
                 default:
                     break;
             }

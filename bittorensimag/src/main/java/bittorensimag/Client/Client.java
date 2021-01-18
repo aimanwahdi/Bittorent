@@ -45,7 +45,8 @@ public class Client {
     private final MsgCoderFromWire coderFromWire;;
     boolean isSeeding;
     private Selector selector;
-    private List<SocketChannel> otherClientsChannels;
+    private List<SocketChannel> peersNotConnected;
+    private List<SocketChannel> peersConnected;
     private List<Integer> portsConnected;
 
     private Bitfield bitfieldReceived;
@@ -78,7 +79,8 @@ public class Client {
 
         this.leecherOrSeeder(destinationFolder);
 
-        this.otherClientsChannels = new ArrayList<SocketChannel>();
+        this.peersNotConnected = new ArrayList<SocketChannel>();
+        this.peersConnected = new ArrayList<SocketChannel>();
         this.portsConnected = new ArrayList<Integer>();
         this.createSelector(); // create selector
     }
@@ -301,7 +303,7 @@ public class Client {
             // is ignored
             clntChan.register(this.selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE);
 
-            otherClientsChannels.add(clntChan);
+            peersNotConnected.add(clntChan);
 
         } catch (IOException e) {
             LOG.fatal("Could not create Socket, is the client still up ?");
@@ -333,7 +335,7 @@ public class Client {
                             torrentProgressBars.add(this.progressBarBuilder, "/" + destAddress + ":" + port);
                         }
                         // send handshakes to new client
-                        for (SocketChannel clntChan : this.otherClientsChannels) {
+                        for (SocketChannel clntChan : this.peersNotConnected) {
                             if (!this.handshakeSent.contains(clntChan)) {
                                 Handshake.sendMessage(this.torrent.info_hash, clntChan);
                                 this.handshakeSent.add(clntChan);
@@ -388,8 +390,15 @@ public class Client {
                 nextPiece = this.pieceManager.nextPieceToRequest(clntChan.socket());
                 LOG.debug("Next piece to be requested " + nextPiece);
                 if (nextPiece != -1) {
-                    Request.sendMessageForIndex(nextPiece, clntChan);
-                    LOG.debug("Request message sent for " + nextPiece + " to client " + clntChan);
+                    if (this.pieceManager.getEndgameStatus()) {
+                        for (SocketChannel channel : this.peersConnected) {
+                            Request.sendMessageForIndex(nextPiece, channel);
+                            LOG.debug("Request message sent for " + nextPiece + " to client " + clntChan);
+                        }
+                    } else {
+                        Request.sendMessageForIndex(nextPiece, clntChan);
+                        LOG.debug("Request message sent for " + nextPiece + " to client " + clntChan);
+                    }
                     // set this piece as requested
                     this.pieceManager.requestSent(nextPiece);
                 } else if (!this.pieceManager.getDownloaded().contains(false)) {
@@ -465,17 +474,21 @@ public class Client {
                     }
                 }
                 break;
-            // TODO if implementing endgame
-            // case Cancel.CANCEL_TYPE:
-            // Cancel cancel = (Cancel) msgReceived;
-            // this.handlePieceMsg(piece, clntChan);
-            // break;
+            case Cancel.CANCEL_TYPE:
+                Cancel cancel = (Cancel) msgReceived;
+                LOG.debug("Cancel message received for index " + cancel.getIndex() + " from client " + clntChan);
+                this.handleCancel(cancel, clntChan);
+                break;
             default:
                 // never reached test before;
                 break;
         }
 
         return piecesMissing;
+    }
+
+    private void handleCancel(Cancel cancel, SocketChannel clntChan) {
+        // TODO if multiple messages read at the same time
     }
 
     private void handleHave(int pieceIndex, SocketChannel clntChan) {
@@ -527,6 +540,8 @@ public class Client {
         this.pieceManager.sortPiecesNeeded();
 
         LOG.debug("New order for pieces needed : " + MapUtil.ArrayListToString(this.pieceManager.getPieceNeeded()));
+
+        this.peersConnected.add(clntChan);
         // Print the peers with their available pieces
         // for (int name: this.pieceManager.getPieceMap().keySet()){
         // String value = this.pieceManager.getPieceMap().get(name).toString();
@@ -616,8 +631,12 @@ public class Client {
             if (Piece.testPieceHash(pieceIndex, this.outputFile.getPieceData(pieceIndex))) {
 
                 // send have for this piece to all other peers
-                for (SocketChannel otherChannels : this.otherClientsChannels) {
-                    Have.sendMessage(pieceIndex, otherChannels);
+                for (SocketChannel channel : this.peersConnected) {
+                    Have.sendMessage(pieceIndex, channel);
+                    // send cancel to all other channels
+                    if (this.pieceManager.getEndgameStatus() && clntChan != channel) {
+                        Cancel.sendMessageForIndex(pieceIndex, channel);
+                    }
                 }
                 // set this piece downloaded
                 this.pieceManager.pieceDownloaded(pieceIndex);
@@ -628,8 +647,16 @@ public class Client {
                 LOG.debug("Next Piece to be requested " + nextPiece);
                 // only request if we still lack pieces
                 if (nextPiece != -1) {
-                    Request.sendMessageForIndex(nextPiece, clntChan);
-                    LOG.debug("Request message sent for " + nextPiece + " to client " + clntChan);
+                    if (this.pieceManager.getEndgameStatus()) {
+                        for (SocketChannel channel : this.peersConnected) {
+                            Request.sendMessageForIndex(nextPiece, channel);
+                            LOG.debug("Request message sent for " + nextPiece + " to client " + clntChan);
+                        }
+                    } else {
+                        Request.sendMessageForIndex(nextPiece, clntChan);
+                        LOG.debug("Request message sent for " + nextPiece + " to client " + clntChan);
+                    }
+                    // set this piece as requested
                     this.pieceManager.requestSent(nextPiece);
                 } else if (!this.pieceManager.getDownloaded().contains(false)) {
                     this.piecesMissing = false;
@@ -653,9 +680,12 @@ public class Client {
 
         LOG.debug("Closing connection with channel" + clntChan);
         int port = clntChan.socket().getPort();
-        if (this.otherClientsChannels.contains(clntChan) && this.portsConnected.contains(port)) {
-            this.otherClientsChannels.remove(clntChan);
+        if (this.peersNotConnected.contains(clntChan) && this.portsConnected.contains(port)) {
+            this.peersNotConnected.remove(clntChan);
             this.portsConnected.remove(Integer.valueOf(port));
+        }
+        if (this.peersConnected.contains(clntChan)) {
+            this.peersConnected.remove(clntChan);
         }
 
         if (Logger.getRootLogger().getLevel() == Level.INFO) {

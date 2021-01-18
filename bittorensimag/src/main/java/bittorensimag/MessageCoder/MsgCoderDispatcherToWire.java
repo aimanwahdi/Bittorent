@@ -16,4 +16,6 @@ public interface MsgCoderDispatcherToWire {
     byte[] toWire(Piece msg) throws IOException;
 
     byte[] toWire(Request msg) throws IOException;
+
+    byte[] toWire(Cancel msg) throws IOException;
 }
