@@ -3,9 +3,11 @@ package bittorensimag.Client;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
+import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -231,7 +233,7 @@ public class Client {
 
                     // // Register it with the selector, for reading and writing
                     // clntChan.register(selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE);
-                    // otherClientsChannels.add(clntChan);
+                    // peersNotConnected.add(clntChan);
                     // Handshake.sendMessage(this.torrent.info_hash, clntChan);
                     // this.handshakeSent.add(clntChan);
                     // if (Logger.getRootLogger().getLevel() == Level.INFO) {
@@ -541,6 +543,8 @@ public class Client {
 
         LOG.debug("New order for pieces needed : " + MapUtil.ArrayListToString(this.pieceManager.getPieceNeeded()));
 
+        // Move this peer status from not connected to connected
+        this.peersNotConnected.remove(clntChan);
         this.peersConnected.add(clntChan);
         // Print the peers with their available pieces
         // for (int name: this.pieceManager.getPieceMap().keySet()){
