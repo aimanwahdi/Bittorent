@@ -173,8 +173,6 @@ public class Client {
         this.progressBarBuilder = new ProgressBarBuilder().setInitialMax(Torrent.totalSize).setUnit(this.unitName,
                 this.unitSize);
 
-        // TODO Make a ProgressBarSet instead to not get same client multiple times (in
-        // case connection close and reopens)
         ProgressBarArray pbArray = new ProgressBarArrayBuilder().setTaskName(taskNamesArray)
                 .setInitialMax(Torrent.totalSize).setUnit(this.unitName, this.unitSize).build();
         return pbArray;
@@ -202,7 +200,6 @@ public class Client {
 
             this.startTime = System.currentTimeMillis(); // fetch starting time
 
-            // TODO go from leecher to seeder when all pieces received
             while (true) {
                 if ((System.currentTimeMillis() - startTime) >= 5000) {
                     this.printPorts();
@@ -585,7 +582,6 @@ public class Client {
             return false;
         }
         String peerId = new String(handshake.getPeerId());
-        // todo update peerId
         this.socketToPeerIdMap.put(clntChan, peerId);
 
         if (Logger.getRootLogger().getLevel() == Level.INFO) {
