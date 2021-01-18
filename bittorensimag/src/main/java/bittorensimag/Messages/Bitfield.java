@@ -5,6 +5,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
 
 import org.apache.log4j.Logger;
 
@@ -49,6 +50,49 @@ public class Bitfield extends Msg {
 
 	public static void setByteInBitfield(int index, byte status) {
 		Bitfield.ourBitfieldData[index] = status;
+	}
+	
+	public static void updateByteInBitfield(int pieceIndex) {
+		int byteNumber = Bitfield.getByteNumber(pieceIndex);
+		byte oldByte = ourBitfieldData[byteNumber];
+		int offset = getByteOffset(pieceIndex);
+		BitSet bitSet = new BitSet(8);
+
+		// byte to bitset
+		for (int i = 0; i < 8; i++) {
+			if ((oldByte & (1 << i)) > 0) {
+				bitSet.set(i);
+			}
+			// change specific bit to true
+			if (i == offset) {
+				bitSet.set(i);
+			}
+		}
+
+		Bitfield.setByteInBitfield(byteNumber, bitSet.toByteArray()[0]);
+	}
+
+	public static String getBitfieldString() {
+		String s = "ourBitfield : ";
+		for (int j = 0; j < bitfieldLength; j++) {
+			byte b = ourBitfieldData[j];
+			for (int i = 0; i < 8; i++) {
+				if ((b & (1 << i)) > 0) {
+					s += 1;
+				} else {
+					s += 0;
+				}
+			}
+		}
+		return s;
+	}
+
+	private static int getByteNumber(int pieceIndex) {
+		return pieceIndex / 8;
+	}
+
+	private static int getByteOffset(int pieceIndex) {
+		return pieceIndex % 8;
 	}
 
 	// TODO change return type to boolean to know if it worked

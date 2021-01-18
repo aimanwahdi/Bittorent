@@ -202,7 +202,6 @@ public class Client {
 
             while (true) {
                 if ((System.currentTimeMillis() - startTime) >= 5000) {
-                    this.printPorts();
                     this.fetchTracker(torrentProgressBars);
                 }
 
@@ -267,10 +266,6 @@ public class Client {
         } catch (IOException ie) {
             LOG.error("Error during try loop : " + ie.getMessage());
         }
-    }
-
-    private void printPorts() {
-        LOG.warn(MapUtil.ArrayListToString((ArrayList<Integer>) this.portsConnected));
     }
 
     private void fetchTracker(ProgressBarArray torrentProgressBars) throws IOException {
@@ -620,7 +615,7 @@ public class Client {
 
         // if piece is not needed (already received from other peer during endgame)
         if (!this.pieceManager.isNeeded(pieceIndex)) {
-            LOG.warn("Piece no more needed, not adding part to the file");
+            LOG.debug("Piece no more needed, not adding part to the file");
             return false;
         }
         this.outputFile.writeToFile(pieceIndex * Torrent.pieces_length + beginOffset, data);
@@ -633,6 +628,10 @@ public class Client {
         // request only if last part of piece has been received
         if (beginOffset == pieceLength - data.length) {
             if (Piece.testPieceHash(pieceIndex, this.outputFile.getPieceData(pieceIndex))) {
+
+                // update our Bitfield
+                Bitfield.updateByteInBitfield(pieceIndex);
+                LOG.debug(Bitfield.getBitfieldString());
 
                 // send have for this piece to all other peers
                 for (SocketChannel channel : this.peersConnected) {
