@@ -32,6 +32,10 @@ public class Output {
 		return name;
 	}
 
+	public File getParentFolder() {
+		return new File(this.f.getAbsoluteFile().getParent());
+	}
+
 	public void generateFile(byte[] data) {
 		try {
 			// Creer un nouveau fichier

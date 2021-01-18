@@ -133,7 +133,11 @@ public class Client {
             // Use ProgressBar("Test", 100, ProgressBarStyle.ASCII) if you want ASCII output
 
             // Set extra message to display at the end of the bar
-            torrentProgressBars.setExtraMessage("Waiting...");
+            if (isSeeding) {
+                torrentProgressBars.getByName(this.outputFile.getName()).setExtraMessage("Seeding...");
+            } else {
+                torrentProgressBars.getByName(this.outputFile.getName()).setExtraMessage("Waiting...");
+            }
 
             ArrayList<Integer> ourPieces = Bitfield.convertBitfieldToList(Bitfield.ourBitfieldData,
                     Torrent.numberOfPieces);
@@ -199,9 +203,9 @@ public class Client {
             this.startTime = System.currentTimeMillis(); // fetch starting time
 
             // TODO go from leecher to seeder when all pieces received
-            while (piecesMissing) {
-
+            while (true) {
                 if ((System.currentTimeMillis() - startTime) >= 5000) {
+                    this.printPorts();
                     this.fetchTracker(torrentProgressBars);
                 }
 
@@ -266,6 +270,10 @@ public class Client {
         } catch (IOException ie) {
             LOG.error("Error during try loop : " + ie.getMessage());
         }
+    }
+
+    private void printPorts() {
+        LOG.warn(MapUtil.ArrayListToString((ArrayList<Integer>) this.portsConnected));
     }
 
     private void fetchTracker(ProgressBarArray torrentProgressBars) throws IOException {
@@ -403,10 +411,17 @@ public class Client {
                     }
                     // set this piece as requested
                     this.pieceManager.requestSent(nextPiece);
-                } else if (!this.pieceManager.getDownloaded().contains(false)) {
-                    this.piecesMissing = false;
+                } else if (this.pieceManager.getPieceNeeded().size() == 0) {
                     if (!isSeeding) {
                         Simple.sendMessage(Simple.NOTINTERESTED, clntChan);
+                    }
+                    LOG.debug("Generating GET Request for tracker");
+                    this.tracker.generateUrl(Tracker.EVENT_COMPLETED);
+                    LOG.debug("Successfully generated GET Request");
+                    this.tracker.getRequest(Tracker.EVENT_COMPLETED);
+                    this.leecherOrSeeder(this.outputFile.getParentFolder());
+                    if (isSeeding) {
+                        torrentProgressBars.getByName(this.outputFile.getName()).setExtraMessage("Seeding...");
                     }
                 }
                 break;
@@ -428,22 +443,6 @@ public class Client {
                     this.mesureUsage(pbCPU, pbMemory);
                 }
                 this.handleHave(have.getIndex(), clntChan);
-
-                // // test if we need the new piece that client has
-                // nextPiece = this.pieceManager.nextPieceToRequest(clntChan.socket());
-                // LOG.debug("Next piece to be requested " + nextPiece);
-                // if (nextPiece != -1) {
-                // Request.sendMessageForIndex(nextPiece, clntChan);
-                // LOG.debug("Request message sent for " + nextPiece + " to client " +
-                // clntChan);
-                // // set this piece as requested
-                // this.pieceManager.requestSent(nextPiece);
-                // } else if (!this.pieceManager.getDownloaded().contains(false)) {
-                // this.piecesMissing = false;
-                // if (!isSeeding) {
-                // Simple.sendMessage(Simple.NOTINTERESTED, clntChan);
-                // }
-                // }
                 break;
             case Bitfield.BITFIELD_TYPE:
                 bitfieldReceived = (Bitfield) msgReceived;
@@ -467,7 +466,7 @@ public class Client {
             case Piece.PIECE_TYPE:
                 Piece piece = (Piece) msgReceived;
                 LOG.debug("Piece message received for index " + piece.getPieceIndex() + " from client " + clntChan);
-                boolean increaseNeeded = this.handlePieceMsg(piece, clntChan);
+                boolean increaseNeeded = this.handlePieceMsg(piece, clntChan, torrentProgressBars);
                 if (Logger.getRootLogger().getLevel() == Level.INFO) {
                     this.mesureUsage(pbCPU, pbMemory);
                     torrentProgressBars.getByName(this.outputFile.getName()).setExtraMessage("Receiving...");
@@ -615,7 +614,7 @@ public class Client {
     }
 
     // returns if update needs to be done to progressbar
-    private boolean handlePieceMsg(Piece piece, SocketChannel clntChan)
+    private boolean handlePieceMsg(Piece piece, SocketChannel clntChan, ProgressBarArray torrentProgressBars)
             throws IOException {
         int pieceIndex = piece.getPieceIndex();
         int beginOffset = piece.getBeginOffset();
@@ -648,7 +647,6 @@ public class Client {
                     }
                 }
                 // set this piece downloaded
-                this.pieceManager.pieceDownloaded(pieceIndex);
                 this.pieceManager.pieceNoMoreNeeded(pieceIndex);
 
                 // search for next piece to be requested
@@ -667,10 +665,17 @@ public class Client {
                     }
                     // set this piece as requested
                     this.pieceManager.requestSent(nextPiece);
-                } else if (!this.pieceManager.getDownloaded().contains(false)) {
-                    this.piecesMissing = false;
+                } else if (this.pieceManager.getPieceNeeded().size() == 0) {
                     if (!isSeeding) {
                         Simple.sendMessage(Simple.NOTINTERESTED, clntChan);
+                    }
+                    LOG.debug("Generating GET Request for tracker");
+                    this.tracker.generateUrl(Tracker.EVENT_COMPLETED);
+                    LOG.debug("Successfully generated GET Request");
+                    this.tracker.getRequest(Tracker.EVENT_COMPLETED);
+                    this.leecherOrSeeder(this.outputFile.getParentFolder());
+                    if (isSeeding) {
+                        torrentProgressBars.getByName(this.outputFile.getName()).setExtraMessage("Seeding...");
                     }
                 }
                 return true;
