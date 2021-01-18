@@ -693,10 +693,12 @@ public class Client {
         }
 
         if (Logger.getRootLogger().getLevel() == Level.INFO) {
-            torrentProgressBars.getByIPPort(clntChan).close();
+            torrentProgressBars.removeByIPPort(clntChan);
         }
 
         clntChan.close();
+
+        // Buggy does not print all peers
         // StatGetter.clearScreen();
     }
 

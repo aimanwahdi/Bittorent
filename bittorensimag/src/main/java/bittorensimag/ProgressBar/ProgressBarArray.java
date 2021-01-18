@@ -116,4 +116,10 @@ public class ProgressBarArray implements AutoCloseable {
         LOG.error("Could not get the progressBar by its taskName");
         return null;
     }
+
+    public void removeByIPPort(SocketChannel clntChan) {
+        ProgressBar toRemove = this.getByIPPort(clntChan);
+        this.pbArray.remove(toRemove);
+        toRemove.close();
+    }
 }
