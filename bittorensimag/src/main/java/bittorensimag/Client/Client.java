@@ -21,6 +21,7 @@ import bittorensimag.MessageCoder.MsgCoderFromWire;
 import bittorensimag.MessageCoder.MsgCoderToWire;
 import bittorensimag.Messages.*;
 import bittorensimag.Torrent.*;
+import bittorensimag.Util.MapUtil;
 import bittorensimag.Util.PieceManager;
 
 import bittorensimag.ProgressBar.*;
@@ -102,6 +103,7 @@ public class Client {
             LOG.info("Creating empty file...");
             this.outputFile.createEmptyFile(f, destinationFolder);
             LOG.debug("Output file with empty data created");
+            this.pieceManager.initNeededPiecesList(Torrent.numberOfPieces);
         }
     }
 
@@ -436,8 +438,11 @@ public class Client {
                 bitfieldReceived = (Bitfield) msgReceived;
                 this.handleBitfield(bitfieldReceived, clntChan, torrentProgressBars);
                 if (!isSeeding) {
-                    Simple.sendMessage(Simple.INTERESTED, clntChan);
-                    LOG.debug("Send interested message to " + clntChan);
+                    // send interested only if peer has piece we need
+                    if (this.pieceManager.nextPieceToRequest(clntChan.socket()) != -1) {
+                        Simple.sendMessage(Simple.INTERESTED, clntChan);
+                        LOG.debug("Send interested message to " + clntChan);
+                    }
                 }
                 break;
             case Request.REQUEST_TYPE:
@@ -479,7 +484,9 @@ public class Client {
             peers.add(clntChan.socket());
             this.pieceManager.getPieceMap().put(pieceIndex, peers);
         } else {
-            this.pieceManager.getPieceMap().get(pieceIndex).add(clntChan.socket());
+            if (!this.pieceManager.getPieceMap().get(pieceIndex).contains(clntChan.socket())) {
+                this.pieceManager.getPieceMap().get(pieceIndex).add(clntChan.socket());
+            }
         }
     }
 
@@ -505,13 +512,21 @@ public class Client {
                 peers.add(clntChan.socket());
                 this.pieceManager.getPieceMap().put(pieceIndex, peers);
             } else {
-                this.pieceManager.getPieceMap().get(pieceIndex).add(clntChan.socket());
+                if (!this.pieceManager.getPieceMap().get(pieceIndex).contains(clntChan.socket())) {
+                    this.pieceManager.getPieceMap().get(pieceIndex).add(clntChan.socket());
+                }
             }
             if (Logger.getRootLogger().getLevel() == Level.INFO) {
                 this.increaseClientProgress(pieceIndex, clntChan, torrentProgressBars);
             }
         }
 
+        this.pieceManager.setPieceMap(
+                (HashMap<Integer, ArrayList<Socket>>) MapUtil.sortBySize(this.pieceManager.getPieceMap(), MapUtil.ASC));
+
+        this.pieceManager.sortPiecesNeeded();
+
+        LOG.debug("New order for pieces needed : " + MapUtil.ArrayListToString(this.pieceManager.getPieceNeeded()));
         // Print the peers with their available pieces
         // for (int name: this.pieceManager.getPieceMap().keySet()){
         // String value = this.pieceManager.getPieceMap().get(name).toString();
@@ -606,10 +621,11 @@ public class Client {
                 }
                 // set this piece downloaded
                 this.pieceManager.pieceDownloaded(pieceIndex);
+                this.pieceManager.pieceNoMoreNeeded(pieceIndex);
 
                 // search for next piece to be requested
                 int nextPiece = this.pieceManager.nextPieceToRequest(clntChan.socket());
-                LOG.debug("nextPiece to be requested " + nextPiece);
+                LOG.debug("Next Piece to be requested " + nextPiece);
                 // only request if we still lack pieces
                 if (nextPiece != -1) {
                     Request.sendMessageForIndex(nextPiece, clntChan);

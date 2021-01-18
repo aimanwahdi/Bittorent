@@ -215,6 +215,7 @@ public class Torrent {
                 } else {
                     // else bit stays as false
                     isComplete = false;
+                    pieceManager.pieceNeeded(pieceNumber);
                 }
                 buffer.clear();
             }
@@ -245,6 +246,7 @@ public class Torrent {
             } else {
                 // else bit stays as false
                 isComplete = false;
+                pieceManager.pieceNeeded(pieceNumber);
             }
             buffer.clear();
         }
