@@ -130,4 +130,8 @@ public class PieceManager {
 	public boolean getEndgameStatus() {
 		return endgameMode;
 	}
+
+	public boolean isNeeded(int pieceIndex) {
+		return needed.contains(pieceIndex);
+	}
 }

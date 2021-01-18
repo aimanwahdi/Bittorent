@@ -623,6 +623,11 @@ public class Client {
 
         LOG.debug("Piece with index " + pieceIndex + " with beginOffset " + beginOffset);
 
+        // if piece is not needed (already received from other peer during endgame)
+        if (!this.pieceManager.isNeeded(pieceIndex)) {
+            LOG.warn("Piece no more needed, not adding part to the file");
+            return false;
+        }
         this.outputFile.writeToFile(pieceIndex * Torrent.pieces_length + beginOffset, data);
 
         int pieceLength = Torrent.pieces_length;
