@@ -5,11 +5,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.Map.Entry;
 
 import org.apache.log4j.Logger;
 
@@ -17,34 +14,23 @@ import bittorensimag.Torrent.Torrent;
 
 public class PieceManager {
 	private static final Logger LOG = Logger.getLogger(PieceManager.class);
-	private HashMap<Integer, ArrayList<Socket>> pieceMap; //Clé : Piece Index, Valeur : List of peers that contains this piece
-	private ArrayList<Boolean> downloaded;
+	private HashMap<Integer, ArrayList<Socket>> pieceMap; // Clé : Piece Index, Valeur : List of peers that contains
+															// this piece
 	private ArrayList<Boolean> requestSent;
 	private ArrayList<Integer> needed;
-	private int numOfPiece;
 	private static boolean endgameMode = false;
 
-	// public PieceManager(HashMap<Integer, ArrayList<String>> pieceMap,
-	// ArrayList<Boolean> downloaded, ArrayList<Boolean> requestSent, int
-	// numOfPiece) {
 	public PieceManager(int numOfPiece) {
 		super();
 		this.pieceMap = new HashMap<Integer, ArrayList<Socket>>();
-		this.downloaded = new ArrayList<Boolean>();
 		this.requestSent = new ArrayList<Boolean>();
-		this.numOfPiece = numOfPiece;
 		this.needed = new ArrayList<Integer>();
-		// in the beginning we don't have any piece requested or downloaded
-		this.initList(this.downloaded, numOfPiece);
+		// in the beginning we don't have any piece requested
 		this.initList(this.requestSent, numOfPiece);
 	}
 
 	public void requestSent(int pieceRequested) {
 		requestSent.set(pieceRequested, true);
-	}
-
-	public void pieceDownloaded(int pieceReceived) {
-		downloaded.set(pieceReceived, true);
 	}
 
 	public void pieceNeeded(int pieceNeeded) {
@@ -62,7 +48,7 @@ public class PieceManager {
 			nextPiece = needed.get(i);
 			// if request has already been sent or peer does not have nextPiece
 			if (pieceMap.containsKey(nextPiece)) {
-				if (requestSent.get(nextPiece) || !pieceMap.get(nextPiece).contains(currentPeer)) {
+				if (isRequested(nextPiece) || !pieceMap.get(nextPiece).contains(currentPeer)) {
 					continue;
 				} else {
 					peerHasPieceWeNeed = true;
@@ -114,10 +100,6 @@ public class PieceManager {
 
 	public ArrayList<Integer> getPieceNeeded() {
 		return needed;
-	}
-
-	public ArrayList<Boolean> getDownloaded() {
-		return downloaded;
 	}
 
 	private void beginEndgame() {

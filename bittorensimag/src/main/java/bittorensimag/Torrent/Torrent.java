@@ -211,7 +211,6 @@ public class Torrent {
                 if (Piece.testPieceHash(pieceNumber, pieceData)) {
                     LOG.debug("Piece " + pieceNumber + " correct");
                     bitSet.set(b);
-                    pieceManager.pieceDownloaded(pieceNumber);
                 } else {
                     // else bit stays as false
                     isComplete = false;
@@ -242,7 +241,6 @@ public class Torrent {
             if (Piece.testPieceHash(pieceNumber, pieceData)) {
                 LOG.debug("Piece " + pieceNumber + " correct");
                 bitSet.set(b);
-                pieceManager.pieceDownloaded(pieceNumber);
             } else {
                 // else bit stays as false
                 isComplete = false;
