@@ -27,8 +27,8 @@ fi
 
 torrent=./src/test/exampleTorrents/Aigle.jpg.torrent
 file=./src/test/exampleFiles/Aigle.jpg
-fileBegin=./src/test/Aigle050/Aigle.jpg
-fileEnd=./src/test/Aigle50100/Aigle.jpg
+fileBegin=./src/test/Aigle033/Aigle.jpg
+fileEnd=./src/test/Aigle066/Aigle.jpg
 fileFolder=$HOME/Downloads
 
 for i in $(seq 1 3);do
