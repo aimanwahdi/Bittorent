@@ -86,14 +86,14 @@ public class Torrent {
             this.document = reader.decodeMap().getMap();
             if (hasInfo()) {
                 this.info = this.document.get(INFO).getMap();
+                this.hashInfo();
+                this.metadata = fillMetadata();
+                this.setFields();
+                this.fillPiecesHashes();
             }
         } catch (IOException e) {
             LOG.fatal("Could not decode document map from torrent file");
         }
-        this.hashInfo();
-        this.metadata = fillMetadata();
-        this.setFields();
-        this.fillPiecesHashes();
     }
 
     public boolean hasInfo() {
@@ -174,8 +174,15 @@ public class Torrent {
         Torrent.numberOfPieces = (int) Math
                 .ceil((double) totalSize / (double) (Torrent.numberOfPartPerPiece * Piece.DATA_LENGTH));
         Torrent.lastPieceLength = totalSize % (Torrent.numberOfPartPerPiece * Piece.DATA_LENGTH);
-        Torrent.lastPartLength = totalSize % Piece.DATA_LENGTH;
-        Torrent.lastPieceNumberOfParts = (int) Math.ceil((double) Torrent.lastPieceLength / (double) Piece.DATA_LENGTH);
+        if (Torrent.lastPieceLength == 0) {
+            // torrent with perfect size
+            Torrent.lastPieceLength = Torrent.pieces_length;
+            Torrent.lastPartLength = Piece.DATA_LENGTH;
+            Torrent.lastPieceNumberOfParts = Torrent.numberOfPartPerPiece;
+        } else {
+            Torrent.lastPartLength = totalSize % Piece.DATA_LENGTH;
+            Torrent.lastPieceNumberOfParts = (int) Math.ceil((double) Torrent.lastPieceLength / (double) Piece.DATA_LENGTH);
+        }
 
     }
 
@@ -248,14 +255,18 @@ public class Torrent {
             }
             buffer.clear();
         }
-        // create the last byte
-        if (bitSet.toByteArray().length == 0) {
-            // if no byte are set to true
-            Bitfield.setByteInBitfield(numberOfBytes, (byte) 0x0);
-        } else {
-            Bitfield.setByteInBitfield(numberOfBytes, Util.reverseBitsByte(bitSet.toByteArray()[0]));
+
+        // setByte only if we have last piece
+        if (!(Torrent.numberOfPieces % 8 == 0)) {
+            // create the last byte
+            if (bitSet.toByteArray().length == 0) {
+                // if no byte are set to true
+                Bitfield.setByteInBitfield(numberOfBytes, (byte) 0x0);
+            } else {
+                Bitfield.setByteInBitfield(numberOfBytes, Util.reverseBitsByte(bitSet.toByteArray()[0]));
+            }
+            bitSet.clear();
         }
-        bitSet.clear();
 
         file.closeInChannel();
         if (Bitfield.ourBitfieldData == Bitfield.fullBitfield) {
