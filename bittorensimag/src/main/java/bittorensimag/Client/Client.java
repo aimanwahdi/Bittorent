@@ -412,7 +412,7 @@ public class Client {
                     LOG.debug("Successfully generated GET Request");
                     this.tracker.getRequest(Tracker.EVENT_COMPLETED);
                     this.leecherOrSeeder(this.outputFile.getParentFolder());
-                    if (isSeeding) {
+                    if (isSeeding && Logger.getRootLogger().getLevel() == Level.INFO) {
                         torrentProgressBars.getByName(this.outputFile.getName()).setExtraMessage("Seeding...");
                     }
                 }
@@ -669,7 +669,7 @@ public class Client {
                     LOG.debug("Successfully generated GET Request");
                     this.tracker.getRequest(Tracker.EVENT_COMPLETED);
                     this.leecherOrSeeder(this.outputFile.getParentFolder());
-                    if (isSeeding) {
+                    if (isSeeding && Logger.getRootLogger().getLevel() == Level.INFO) {
                         torrentProgressBars.getByName(this.outputFile.getName()).setExtraMessage("Seeding...");
                     }
                 }
