@@ -30,8 +30,8 @@ fi
 # |	│           ├── clean.sh
 # |	│           └── multi-transmission.sh
 
-torrent=./src/test/exampleTorrents/Big_Buck_Bunny_1080p.avi.torrent
-file=./src/test/exampleFiles/Big_Buck_Bunny_1080p.avi
+torrent=./src/test/exampleTorrents/500M.torrent
+file=./src/test/exampleFiles/500M
 fileFolder=$HOME/Downloads
 
 #lancer plusieurs leechers en parallèle (ici 3)
