@@ -3,7 +3,6 @@ package bittorensimag.Util;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map.Entry;
 import java.util.Random;
 
@@ -14,6 +13,11 @@ public class Util {
     // convert int to hexadecimal string with trailing 0 from 01 to 0F
     public static String intToHexStringWith0(int n) {
         return String.format("%1$02X", n);
+    }
+
+    // convert int to hexadecimal string without trailing 0 from 01 to 0F
+    public static String intToHexStringWithout0(int n) {
+        return String.format("%1$01X", n);
     }
 
     // convert bytearray into a string
@@ -78,5 +82,18 @@ public class Util {
     		hmap.put(i, peerPort);
     	}
     	return hmap;
+    }
+
+    /*
+     * reverses bits in a byte Input:00100110 Output:01100100
+     */
+    public static byte reverseBitsByte(byte x) {
+        int intSize = 8;
+        byte y = 0;
+        for (int position = intSize - 1; position > -1; position--) {
+            y += ((x & 1) << position);
+            x >>= 1;
+        }
+        return y;
     }
 }

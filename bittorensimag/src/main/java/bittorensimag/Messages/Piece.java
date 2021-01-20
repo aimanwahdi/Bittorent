@@ -1,7 +1,8 @@
 package bittorensimag.Messages;
 
 import java.io.IOException;
-import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.nio.channels.SocketChannel;
 import java.util.Arrays;
 
 import org.apache.log4j.Logger;
@@ -9,7 +10,6 @@ import org.apache.log4j.Logger;
 import bittorensimag.MessageCoder.*;
 import bittorensimag.Torrent.Torrent;
 import bittorensimag.Util.Hashage;
-import bittorensimag.Util.Util;
 
 public class Piece extends Msg {
 	private static final Logger LOG = Logger.getLogger(Piece.class);
@@ -56,15 +56,24 @@ public class Piece extends Msg {
 		this.data = data;
 	}
 
-	public static void sendMessage(int msgLength, int index, int beginOffset, byte[] data, OutputStream out)
+	// TODO change return type to boolean to know if it worked
+	public static void sendMessage(int msgLength, int index, int beginOffset, byte[] data, SocketChannel clntChan)
 			throws IOException {
 		MsgCoderToWire coderToWire = new MsgCoderToWire();
 		Piece piece = new Piece(msgLength, index, beginOffset, data);
-		coderToWire.frameMsg(coderToWire.toWire(piece), out);
-		LOG.debug("Message Piece sent index=" + index + " beginOffset=" + beginOffset);
+		try {
+			ByteBuffer writeBuf = ByteBuffer.wrap(coderToWire.toWire(piece));
+
+			if (writeBuf.hasRemaining()) {
+				clntChan.write(writeBuf);
+			}
+
+			LOG.debug("Message Piece sent index=" + index + " beginOffset=" + beginOffset);
+		} catch (IOException e) {
+			LOG.error("Error sending piece message " + e.getMessage());
+		}
 	}
 
-	// TODO Replace fileContent with buffer
 	public static boolean testPieceHash(int index, byte[] pieceData) {
 
 		// hash the piece
@@ -76,19 +85,8 @@ public class Piece extends Msg {
 		if (Arrays.equals(hashOfPieceFile, hashOfPieceTorrent)) {
 			return true;
 		} else {
-			LOG.error("File is not identical to it's torrent");
+			LOG.error("Piece " + index + " is not identical to it's torrent hash");
 			return false;
-		}
-	}
-
-	public static void addToMap(int pieceIndex, byte[] data) {
-		LOG.debug("Adding piece " + pieceIndex + " to the map");
-		// TODO add beginOffset in case parts do not arrive in order
-		if (Torrent.dataMap.containsKey(pieceIndex)) {
-			LOG.debug("Piece already in map, concatenate to piece");
-			Torrent.dataMap.replace(pieceIndex, Util.concat(Torrent.dataMap.get(pieceIndex), data));
-		} else {
-			Torrent.dataMap.put(pieceIndex, data);
 		}
 	}
 }

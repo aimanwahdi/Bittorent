@@ -142,10 +142,10 @@ public class Tracker {
             this.peerIP = "";
 
             for (j = 6 * i; j < 6 * i + 3; j++) {
-                this.peerIP += (int) peersAnswer[j] + ".";
+                this.peerIP += Byte.toUnsignedInt(peersAnswer[j]) + ".";
             }
 
-            this.peerIP += (int) peersAnswer[j];
+            this.peerIP += Byte.toUnsignedInt(peersAnswer[j]);
             this.peerPort = Integer.parseInt(Util.bytesToHex(Arrays.copyOfRange(peersAnswer, ++j, j + 2)), 16);
 
             if (!IPv4ValidatorRegex.isValid(this.peerIP) || this.peerPort == 0) {

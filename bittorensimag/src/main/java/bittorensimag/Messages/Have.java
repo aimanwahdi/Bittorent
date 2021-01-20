@@ -1,7 +1,8 @@
 package bittorensimag.Messages;
 
 import java.io.IOException;
-import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.nio.channels.SocketChannel;
 
 import org.apache.log4j.Logger;
 
@@ -28,11 +29,21 @@ public class Have extends Msg {
 		this.index = index;
 	}
 
-	public static void sendMessage(int index, OutputStream out) throws IOException {
+	// TODO change return type to boolean to know if it worked
+	public static void sendMessage(int index, SocketChannel clntChan) throws IOException {
 		MsgCoderToWire coderToWire = new MsgCoderToWire();
 		Have have = new Have(index);
-		coderToWire.frameMsg(coderToWire.toWire(have), out);
-		LOG.debug("Message Have sent for index=" + index);
+
+		try {
+			ByteBuffer writeBuf = ByteBuffer.wrap(coderToWire.toWire(have));
+
+			if (writeBuf.hasRemaining()) {
+				clntChan.write(writeBuf);
+			}
+			LOG.debug("Message Have sent for index=" + index);
+		} catch (IOException e) {
+			LOG.error("Error sending have message " + e.getMessage());
+		}
 	}
 
 }

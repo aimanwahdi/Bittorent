@@ -10,7 +10,6 @@ import org.apache.log4j.Logger;
 import bittorensimag.MessageCoder.MsgCoderFromWire;
 import bittorensimag.MessageCoder.MsgCoderToWire;
 import bittorensimag.Torrent.*;
-import bittorensimag.Util.MapUtil;
 
 /**
  * Instance of the bittorent compiler
@@ -42,33 +41,28 @@ public class ClientCompiler {
         LOG.debug("Successfully generated GET Request");
         tracker.getRequest(Tracker.EVENT_STARTED);
 
-        // Try each 5 sec to find other peers
-        synchronized (this) {
-            while (!tracker.foundAnotherPeer()) {
-                LOG.warn("There is not another peer please restart other client(s)");
-                try {
-                    this.wait(5000);
-                } catch (InterruptedException e) {
-                    LOG.fatal("Thread got interrupted while waiting " + e.getMessage());
-                }
-                tracker.getRequest(Tracker.EVENT_STARTED);
-            }
-        }
-        LOG.info("Found another peer for torrent file : " + sourceTorrent.getName());
-        
-        Client client = new Client(torrent, tracker, new MsgCoderToWire(), new MsgCoderFromWire());
-        client.leecherOrSeeder();
-        client.startCommunication();
-        if (!client.isSeeding) {
-            byte[] fileContent = MapUtil.convertHashMapToByteArray((int) this.torrent.getMetadata().get(Torrent.LENGTH),
-                Torrent.dataMap);
-            Output out = new Output((String) this.torrent.getMetadata().get(Torrent.NAME),
-                this.destinationFolder.getAbsolutePath() + "/", fileContent);
-            out.generateFile();
-            tracker.generateUrl(Tracker.EVENT_COMPLETED);
-            tracker.getRequest(Tracker.EVENT_COMPLETED);
+        // // Try each 5 sec to find other peers
+        // synchronized (this) {
+        // while (!tracker.foundAnotherPeer()) {
+        // LOG.warn("There is not another peer please restart other client(s)");
+        // try {
+        // this.wait(5000);
+        // } catch (InterruptedException e) {
+        // LOG.fatal("Thread got interrupted while waiting " + e.getMessage());
+        // }
+        // tracker.getRequest(Tracker.EVENT_STARTED);
+        // }
+        // }
+        if (!tracker.foundAnotherPeer()) {
+            LOG.warn("There is not another peer according to tracker");
+        } else {
+            int numberOfPeers = tracker.getPeersMap().entrySet().iterator().next().getValue().size();
+            LOG.info("Found " + numberOfPeers + " peer from tracker for torrent file : " + sourceTorrent.getName());
         }
 
+        Client client = new Client(torrent, tracker, new MsgCoderToWire(), new MsgCoderFromWire(), destinationFolder);
+
+        client.startProgress();
         return true;
     }
 }

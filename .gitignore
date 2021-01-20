@@ -8,11 +8,21 @@
 .project
 .metadata
 .settings
+.idea
+.history
 .vscode/
 **/*.DS_Store
 
 # Do not track generated files
 bittorensimag/src/test/outputFolder/*
 
-# Do not track output of nohup
-bittorensimag/mvn-compile.out
+#Do not track logs
+bittorensimag/src/test/logs/*
+
+# Do not add Big buck bunny and scenario files
+bittorensimag/src/test/exampleFiles/Big_Buck_Bunny_1080p.avi
+bittorensimag/src/test/exampleFiles/500M
+bittorensimag/src/test/BBB*
+
+# Do not add webui files
+bittorensimag/src/test/webui*

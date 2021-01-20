@@ -121,4 +121,20 @@ public class MsgCoderToWire implements MsgCoderDispatcherToWire {
 		byte[] data = byteStream.toByteArray();
 		return data;
 	}
+
+	@Override
+	public byte[] toWire(Cancel msg) throws IOException { // converts the message to a sequence of byte
+		ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
+		DataOutputStream out = new DataOutputStream(byteStream);
+
+		out.writeInt(msg.getMsgLength());
+		out.writeByte(msg.getMsgType());
+		out.writeInt(msg.getIndex());
+		out.writeInt(msg.getBeginOffset());
+		out.writeInt(msg.getPieceLength());
+
+		out.flush();
+		byte[] data = byteStream.toByteArray();
+		return data;
+	}
 }

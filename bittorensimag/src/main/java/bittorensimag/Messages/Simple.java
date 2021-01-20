@@ -1,7 +1,8 @@
 package bittorensimag.Messages;
 
 import java.io.IOException;
-import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.nio.channels.SocketChannel;
 
 import org.apache.log4j.Logger;
 
@@ -43,10 +44,20 @@ public class Simple extends Msg {
                 + "]";
     }
 
-    public static void sendMessage(int msgType, OutputStream out) throws IOException {
+    // TODO change return type to boolean to know if it worked
+    public static void sendMessage(int msgType, SocketChannel clntChan) throws IOException {
         MsgCoderToWire coderToWire = new MsgCoderToWire();
         Simple msg = new Simple(msgType);
-        coderToWire.frameMsg(coderToWire.toWire(msg), out);
-        LOG.debug("Message " + Msg.messagesNames.get(msgType) + " sent");
+		try {
+			ByteBuffer writeBuf = ByteBuffer.wrap(coderToWire.toWire(msg));
+
+			if (writeBuf.hasRemaining()) {
+				clntChan.write(writeBuf);
+			}
+			
+            LOG.debug("Message " + Msg.messagesNames.get(msgType) + " sent");
+		} catch (IOException e) {
+            LOG.error("Error sending " + Msg.messagesNames.get(msgType) + " message " + e.getMessage());
+        }
     }
 }

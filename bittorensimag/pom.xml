@@ -15,6 +15,13 @@
   </properties>
 
   <dependencies>
+    <!-- https://mvnrepository.com/artifact/org.jline/jline-reader -->
+<dependency>
+    <groupId>org.jline</groupId>
+    <artifactId>jline-reader</artifactId>
+    <version>3.18.0</version>
+</dependency>
+
     <dependency>
       <!-- log4j: logging API for Java -->
       <groupId>log4j</groupId>
@@ -94,7 +101,7 @@
         <artifactId>maven-clean-plugin</artifactId>
         <version>3.1.0</version>
         <executions>
-          <execution>
+          <!-- <execution>
             <id>clean-outputFolder</id>
             <configuration>
               <excludeDefaultDirectories>true</excludeDefaultDirectories>
@@ -111,7 +118,7 @@
             <goals>
               <goal>clean</goal>
             </goals>
-          </execution>
+          </execution> -->
           <execution>
             <id>clean-cobertura</id>
             <configuration>
@@ -195,16 +202,16 @@
               <goal>exec</goal>
             </goals>
           </execution>
-          <execution>
-            <id>start-seeders</id>
+          <!-- <execution>
+            <id>start-leechers</id>
             <configuration>
-              <executable>./src/test/script/multi-transmission.sh</executable>
+              <executable>./src/test/script/multi-leechers.sh</executable>
             </configuration>
             <phase>compile</phase>
             <goals>
               <goal>exec</goal>
             </goals>
-          </execution>
+          </execution> -->
         </executions>
       </plugin>
       <plugin>

@@ -5,10 +5,12 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -19,9 +21,12 @@ import be.adaxisoft.bencode.BDecoder;
 import be.adaxisoft.bencode.BEncodedValue;
 import be.adaxisoft.bencode.BEncoder;
 import be.adaxisoft.bencode.InvalidBEncodingException;
+import bittorensimag.Client.Output;
+import bittorensimag.Messages.Bitfield;
 import bittorensimag.Messages.Piece;
 import bittorensimag.Util.Hashage;
 import bittorensimag.Util.MapUtil;
+import bittorensimag.Util.PieceManager;
 import bittorensimag.Util.Util;
 
 public class Torrent {
@@ -40,11 +45,11 @@ public class Torrent {
     public static int numberOfPartPerPiece;
     public static int numberOfPieces;
     public static int lastPieceLength;
-    public static int lastPieceNumberOfPart;
+    public static int lastPieceNumberOfParts;
     public static int lastPartLength;
     public static int pieces_length;
+    public static int totalSize;
 
-    public static Map<Integer, byte[]> dataMap = new HashMap<Integer, byte[]>();
     public static Map<Integer, byte[]> piecesHashes = new HashMap<Integer, byte[]>();
 
     public final static String INFO = "info";
@@ -81,14 +86,14 @@ public class Torrent {
             this.document = reader.decodeMap().getMap();
             if (hasInfo()) {
                 this.info = this.document.get(INFO).getMap();
+                this.hashInfo();
+                this.metadata = fillMetadata();
+                this.setFields();
+                this.fillPiecesHashes();
             }
         } catch (IOException e) {
             LOG.fatal("Could not decode document map from torrent file");
         }
-        this.hashInfo();
-        this.metadata = fillMetadata();
-        this.setFields();
-        this.fillPiecesHashes();
     }
 
     public boolean hasInfo() {
@@ -165,12 +170,19 @@ public class Torrent {
     }
 
     private void calculateNumberPieces() {
-        int length = (int) this.getMetadata().get(LENGTH);
+        Torrent.totalSize = (int) this.getMetadata().get(LENGTH);
         Torrent.numberOfPieces = (int) Math
-                .ceil((double) length / (double) (Torrent.numberOfPartPerPiece * Piece.DATA_LENGTH));
-        Torrent.lastPieceLength = length % (Torrent.numberOfPartPerPiece * Piece.DATA_LENGTH);
-        Torrent.lastPartLength = length % Piece.DATA_LENGTH;
-        Torrent.lastPieceNumberOfPart = (int) Math.ceil((double) Torrent.lastPieceLength / (double) Piece.DATA_LENGTH);
+                .ceil((double) totalSize / (double) (Torrent.numberOfPartPerPiece * Piece.DATA_LENGTH));
+        Torrent.lastPieceLength = totalSize % (Torrent.numberOfPartPerPiece * Piece.DATA_LENGTH);
+        if (Torrent.lastPieceLength == 0) {
+            // torrent with perfect size
+            Torrent.lastPieceLength = Torrent.pieces_length;
+            Torrent.lastPartLength = Piece.DATA_LENGTH;
+            Torrent.lastPieceNumberOfParts = Torrent.numberOfPartPerPiece;
+        } else {
+            Torrent.lastPartLength = totalSize % Piece.DATA_LENGTH;
+            Torrent.lastPieceNumberOfParts = (int) Math.ceil((double) Torrent.lastPieceLength / (double) Piece.DATA_LENGTH);
+        }
 
     }
 
@@ -185,38 +197,82 @@ public class Torrent {
         }
     }
 
-    public boolean compareContent(File sourceFile) {
-        // Creating stream and buffer to read file
-        byte[] fileContent = null;
-        try {
-            fileContent = Files.readAllBytes(sourceFile.toPath());
-        } catch (IOException e) {
-            LOG.fatal("Could not readAllBytes from source file : " + sourceFile);
+    public boolean fillBitfield(Output file, PieceManager pieceManager) throws IOException {
+        boolean isComplete = true;
+        ;
+
+        ByteBuffer buffer = ByteBuffer.allocate(Torrent.pieces_length);
+        byte[] pieceData;
+        BitSet bitSet = new BitSet(8);
+        int numberOfBytes = 0;
+
+        FileChannel channel = file.getInChannel();
+
+        for (; numberOfBytes < Torrent.numberOfPieces / 8; numberOfBytes++) {
+            for (int b = 0; b < 8; b++) {
+                int pieceNumber = b + 8 * numberOfBytes;
+                if (channel.read(buffer) == -1) {
+                    LOG.debug("Error reading file in buffer");
+                }
+                pieceData = buffer.array();
+                if (Piece.testPieceHash(pieceNumber, pieceData)) {
+                    LOG.debug("Piece " + pieceNumber + " correct");
+                    bitSet.set(b);
+                } else {
+                    // else bit stays as false
+                    isComplete = false;
+                    pieceManager.pieceNeeded(pieceNumber);
+                }
+                buffer.clear();
+            }
+            // each 8 bits we create a byte
+            if (bitSet.toByteArray().length == 0) {
+                // if no byte are set to true
+                Bitfield.setByteInBitfield(numberOfBytes, (byte) 0x0);
+            } else {
+                Bitfield.setByteInBitfield(numberOfBytes, Util.reverseBitsByte(bitSet.toByteArray()[0]));
+            }
+            bitSet.clear();
         }
 
-        int i;
-        byte[] pieceData;
-        for (i = 0; i < Torrent.numberOfPieces - 1; i++) {
-            pieceData = Arrays.copyOfRange(fileContent, i * Torrent.pieces_length,
-                    (i + 1) * Torrent.pieces_length);
-            if (Piece.testPieceHash(i, pieceData)) {
-                // add the piece in the map
-                LOG.debug("Adding piece " + i + " to dataMap");
-                Torrent.dataMap.put(i, pieceData);
-            } else {
-                return false;
+        // last pieces of uncomplete byte to read
+        for (int b = 0; b < Torrent.numberOfPieces % 8; b++) {
+            int pieceNumber = b + 8 * numberOfBytes;
+            if (pieceNumber == Torrent.numberOfPieces - 1) {
+                buffer = ByteBuffer.allocate(Torrent.lastPieceLength);
             }
+            if (channel.read(buffer) == -1) {
+                LOG.debug("Error reading file in buffer");
+            }
+            pieceData = buffer.array();
+            if (Piece.testPieceHash(pieceNumber, pieceData)) {
+                LOG.debug("Piece " + pieceNumber + " correct");
+                bitSet.set(b);
+            } else {
+                // else bit stays as false
+                isComplete = false;
+                pieceManager.pieceNeeded(pieceNumber);
+            }
+            buffer.clear();
         }
-        // put last piece in Map
-        pieceData = Arrays.copyOfRange(fileContent, i * Torrent.pieces_length,
-                (i * Torrent.pieces_length) + Torrent.lastPieceLength);
-        if (Piece.testPieceHash(i, pieceData)) {
-            // add the piece in the map
-            LOG.debug("Adding piece " + i + "(last) to dataMap");
-            Torrent.dataMap.put(i, pieceData);
-        } else {
-            return false;
+
+        // setByte only if we have last piece
+        if (!(Torrent.numberOfPieces % 8 == 0)) {
+            // create the last byte
+            if (bitSet.toByteArray().length == 0) {
+                // if no byte are set to true
+                Bitfield.setByteInBitfield(numberOfBytes, (byte) 0x0);
+            } else {
+                Bitfield.setByteInBitfield(numberOfBytes, Util.reverseBitsByte(bitSet.toByteArray()[0]));
+            }
+            bitSet.clear();
         }
-        return true;
+
+        file.closeInChannel();
+        if (Bitfield.ourBitfieldData == Bitfield.fullBitfield) {
+            LOG.debug("Our bitfield is full change last one for lazy bitfield");
+            Bitfield.setByteInBitfield(numberOfBytes, (byte) 0xF0);
+        }
+        return isComplete;
     }
 }
