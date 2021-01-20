@@ -388,32 +388,32 @@ public class Client {
                 Simple choke = (Simple) msgReceived;
                 break;
             case Simple.UNCHOKE:
-                // get the next requested piece and send the request message for it
-                nextPiece = this.pieceManager.nextPieceToRequest(clntChan.socket());
-                LOG.debug("Next piece to be requested " + nextPiece);
-                if (nextPiece != -1) {
-                    if (this.pieceManager.getEndgameStatus()) {
-                        for (SocketChannel channel : this.peersConnected) {
-                            Request.sendMessageForIndex(nextPiece, channel);
+                if (!isSeeding) {
+                    // get the next requested piece and send the request message for it
+                    nextPiece = this.pieceManager.nextPieceToRequest(clntChan.socket());
+                    LOG.debug("Next piece to be requested " + nextPiece);
+                    if (nextPiece != -1) {
+                        if (this.pieceManager.getEndgameStatus()) {
+                            for (SocketChannel channel : this.peersConnected) {
+                                Request.sendMessageForIndex(nextPiece, channel);
+                                LOG.debug("Request message sent for " + nextPiece + " to client " + clntChan);
+                            }
+                        } else {
+                            Request.sendMessageForIndex(nextPiece, clntChan);
                             LOG.debug("Request message sent for " + nextPiece + " to client " + clntChan);
                         }
-                    } else {
-                        Request.sendMessageForIndex(nextPiece, clntChan);
-                        LOG.debug("Request message sent for " + nextPiece + " to client " + clntChan);
-                    }
-                    // set this piece as requested
-                    this.pieceManager.requestSent(nextPiece);
-                } else if (this.pieceManager.getPieceNeeded().size() == 0) {
-                    if (!isSeeding) {
+                        // set this piece as requested
+                        this.pieceManager.requestSent(nextPiece);
+                    } else if (this.pieceManager.getPieceNeeded().size() == 0) {
                         Simple.sendMessage(Simple.NOTINTERESTED, clntChan);
-                    }
-                    LOG.debug("Generating GET Request for tracker");
-                    this.tracker.generateUrl(Tracker.EVENT_COMPLETED);
-                    LOG.debug("Successfully generated GET Request");
-                    this.tracker.getRequest(Tracker.EVENT_COMPLETED);
-                    this.leecherOrSeeder(this.outputFile.getParentFolder());
-                    if (isSeeding && Logger.getRootLogger().getLevel() == Level.INFO) {
-                        torrentProgressBars.getByName(this.outputFile.getName()).setExtraMessage("Seeding...");
+                        LOG.debug("Generating GET Request for tracker");
+                        this.tracker.generateUrl(Tracker.EVENT_COMPLETED);
+                        LOG.debug("Successfully generated GET Request");
+                        this.tracker.getRequest(Tracker.EVENT_COMPLETED);
+                        this.leecherOrSeeder(this.outputFile.getParentFolder());
+                        if (isSeeding && Logger.getRootLogger().getLevel() == Level.INFO) {
+                            torrentProgressBars.getByName(this.outputFile.getName()).setExtraMessage("Seeding...");
+                        }
                     }
                 }
                 break;
