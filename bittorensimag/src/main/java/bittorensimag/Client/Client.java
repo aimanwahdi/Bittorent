@@ -689,10 +689,12 @@ public class Client {
 
         LOG.debug("Closing connection with channel" + clntChan);
         int port = clntChan.socket().getPort();
-        if (this.peersNotConnected.contains(clntChan) && this.portsConnected.contains(port)) {
-            this.peersNotConnected.remove(clntChan);
+        if (this.portsConnected.contains(port)) {
             this.portsConnected.remove(Integer.valueOf(port));
         }
+        if (this.peersNotConnected.contains(clntChan)) {
+            this.peersNotConnected.remove(clntChan);
+        } 
         if (this.peersConnected.contains(clntChan)) {
             this.peersConnected.remove(clntChan);
         }
