@@ -20,9 +20,9 @@ bittorensimag/src/test/outputFolder/*
 bittorensimag/src/test/logs/*
 
 # Do not add Big buck bunny and scenario files
-bittorensimag/src/test/exampleFiles/Big_Buck_Bunny*
+bittorensimag/src/test/exampleFiles/Big_Buck_Bunny_1080p.avi
+bittorensimag/src/test/exampleFiles/500M
 bittorensimag/src/test/BBB*
-bittorensimag/src/test/Aigle*
 
 # Do not add webui files
 bittorensimag/src/test/webui*
